@@ -56,7 +56,7 @@ void EnumerateCameras() {
     CameraList camList = system->GetCameras();
     printf("%d cameras found.\n", camList.GetSize());
     for (size_t i = 0; i < camList.GetSize(); ++i) {
-      printf("%d Serial:%s", i, camList[i]->DeviceSerialNumber().c_str());
+      printf("%lu Serial:%s", i, camList[i]->DeviceSerialNumber().c_str());
       camList[i]->DeviceFamilyName();
       printf("\n");
     }
@@ -71,7 +71,7 @@ CameraPtr OpenCamera() {
 
   // Retrieve list of cameras from the system
   CameraList camList = system->GetCameras();
-  CHECK_GT(camList.GetSize(), 0);
+  CHECK_GT(camList.GetSize(), 0) << "\nNo cameras found, quitting.";
   if (CONFIG_serial.empty()) {
     return camList[0];
   } else {
@@ -82,7 +82,6 @@ CameraPtr OpenCamera() {
 void ConfigureCamera(Spinnaker::CameraPtr camera) {
   // Retrieve GenICam nodemap
   Spinnaker::GenApi::INodeMap& nodeMap = camera->GetNodeMap();
-  int result = 0;
   try {
     CEnumerationPtr ptrPixelFormat = nodeMap.GetNode("PixelFormat");
     if (IsAvailable(ptrPixelFormat) && IsWritable(ptrPixelFormat)) {
@@ -130,8 +129,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
         cout << "Height not available..." << endl << endl;
     }
   } catch (Spinnaker::Exception& e) {
-      cout << "Error: " << e.what() << endl;
-      result = -1;
+      LOG(FATAL) << "Spinnaker Error: " << e.what();
   }
 }
 
