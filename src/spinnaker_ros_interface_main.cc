@@ -26,17 +26,20 @@
 #include "glog/logging.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/image_encodings.h"
 #include "Spinnaker.h"
 #include "SpinGenApi/SpinnakerGenApi.h"
 
 #include "config_reader/config_reader.h"
+
+DECLARE_int32(v);
 
 DEFINE_bool(list, false, "List cameras");
 
 DEFINE_string(config, "config/blackfly-s.lua", "Config file to load");
 
 CONFIG_STRING(serial, "serial");
-CONFIG_STRING(topic, "topic");
+CONFIG_STRING(topic, "image_topic");
 
 ros::Publisher image_pub_;
 
@@ -51,31 +54,34 @@ void EnumerateCameras() {
   try {
     // Retrieve singleton reference to system object
     SystemPtr system = System::GetInstance();
-
     // Retrieve list of cameras from the system
-    CameraList camList = system->GetCameras();
-    printf("%d cameras found.\n", camList.GetSize());
-    for (size_t i = 0; i < camList.GetSize(); ++i) {
-      printf("%lu Serial:%s", i, camList[i]->DeviceSerialNumber().c_str());
-      camList[i]->DeviceFamilyName();
+    CameraList cam_list = system->GetCameras();
+    printf("%d cameras found.\n", cam_list.GetSize());
+    for (size_t i = 0; i < cam_list.GetSize(); ++i) {
+      CameraPtr camera = cam_list.GetByIndex(i);
+      INodeMap& node_map = camera->GetTLDeviceNodeMap();
+      CStringPtr serial = node_map.GetNode("DeviceSerialNumber");
+      CStringPtr model = node_map.GetNode("DeviceModelName");
+      printf("%lu Serial:%s Type:%s\n", i, 
+          serial->ToString().c_str(), model->ToString().c_str());
       printf("\n");
     }
+    cam_list.Clear();
   } catch(int e) {
     fprintf(stderr, "Unknown exception!\n");
   }
 }
 
-CameraPtr OpenCamera() {
-  // Retrieve singleton reference to system object
+CameraPtr OpenCamera(CameraList& cam_list) {
   SystemPtr system = System::GetInstance();
-
-  // Retrieve list of cameras from the system
-  CameraList camList = system->GetCameras();
-  CHECK_GT(camList.GetSize(), 0) << "\nNo cameras found, quitting.";
+  
+  CHECK_GT(cam_list.GetSize(), 0) << "\nNo cameras found, quitting.";
   if (CONFIG_serial.empty()) {
-    return camList[0];
+    printf("Using first camera\n");
+    return cam_list.GetByIndex(0);
   } else {
-    return camList.GetBySerial(CONFIG_serial);
+    printf("Get camera with serial %s\n", CONFIG_serial.c_str());
+    return cam_list.GetBySerial(CONFIG_serial);
   }
 }
 
@@ -86,7 +92,9 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     CEnumerationPtr ptrPixelFormat = nodeMap.GetNode("PixelFormat");
     if (IsAvailable(ptrPixelFormat) && IsWritable(ptrPixelFormat)) {
         // Retrieve the desired entry node from the enumeration node
-        CEnumEntryPtr ptrPixelFormatMono8 = ptrPixelFormat->GetEntryByName("Mono8");
+        CEnumEntryPtr ptrPixelFormatMono8 = 
+            ptrPixelFormat->GetEntryByName("BayerRG8");
+        // CEnumEntryPtr ptrPixelFormatMono8 = ptrPixelFormat->GetEntryByName("Mono8");
         if (IsAvailable(ptrPixelFormatMono8) && IsReadable(ptrPixelFormatMono8)) {
             // Retrieve the integer value from the entry node
             int64_t pixelFormatMono8 = ptrPixelFormatMono8->GetValue();
@@ -134,7 +142,6 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
 }
 
 void CaptureLoop(CameraPtr pCam) {
-  cout << endl << "*** IMAGE ACQUISITION ***" << endl << endl;
   Spinnaker::GenApi::INodeMap& nodeMap = pCam->GetNodeMap();
   try {
     // Set acquisition mode to continuous
@@ -158,25 +165,29 @@ void CaptureLoop(CameraPtr pCam) {
 
     image.header.frame_id = CONFIG_frame_id;
     while (ros::ok()) {
-        ImagePtr pResultImage = pCam->GetNextImage(1000);
-        if (pResultImage->IsIncomplete()) {
-          std::cerr << "Image incomplete with image status " 
-                    << pResultImage->GetImageStatus() 
-                    << endl;
-        } else {
-          image.header.stamp.fromSec(
-                1e-9 * static_cast<double>(pResultImage->GetTimeStamp()));
-          image.width = pResultImage->GetWidth();
-          image.height = pResultImage->GetHeight();
-          image.step = pResultImage->GetStride();
-          image.data.resize(pResultImage->GetBufferSize());
-          memcpy(image.data.data(), 
-              pResultImage->GetData(), image.data.size());
-          image_pub_.publish(image);
+      ImagePtr pResultImage = pCam->GetNextImage(1000);
+      if (pResultImage->IsIncomplete()) {
+        std::cerr << "Image incomplete with image status " 
+                  << pResultImage->GetImageStatus() 
+                  << endl;
+      } else {
+        image.header.stamp.fromSec(
+              1e-9 * static_cast<double>(pResultImage->GetTimeStamp()));
+        image.width = pResultImage->GetWidth();
+        image.height = pResultImage->GetHeight();
+        image.step = pResultImage->GetStride();
+        image.data.resize(pResultImage->GetBufferSize());
+        image.encoding = sensor_msgs::image_encodings::BAYER_BGGR8;
+        memcpy(image.data.data(), 
+            pResultImage->GetData(), image.data.size());
+        image_pub_.publish(image);
+        if (FLAGS_v > 0) {
+          printf("Image captured, t=%f\n", image.header.stamp.toSec());
         }
+      }
 
-        // Release image
-        pResultImage->Release();
+      // Release image
+      pResultImage->Release();
     }
 
     // End acquisition
@@ -198,10 +209,11 @@ int main(int argc, char* argv[]) {
   ros::init(argc, argv, "spinnaker_ros_interface");
   ros::NodeHandle n;
   image_pub_ = n.advertise<sensor_msgs::Image>(CONFIG_topic, 1, false);
-  CameraPtr camera = OpenCamera();
+  SystemPtr system = System::GetInstance();
+  CameraList cam_list = system->GetCameras();
+  CameraPtr camera = OpenCamera(cam_list);
   camera->Init();
   ConfigureCamera(camera);
   CaptureLoop(camera);
-
   return 0;
 }
