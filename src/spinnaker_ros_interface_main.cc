@@ -37,6 +37,7 @@ DECLARE_int32(v);
 DEFINE_bool(list, false, "List cameras");
 
 DEFINE_string(config, "config/blackfly-s.lua", "Config file to load");
+DEFINE_bool(debayer, false, "Enable software debayering");
 
 CONFIG_STRING(serial, "camera_serial");
 CONFIG_INT(img_width, "camera_img_width");
@@ -48,6 +49,7 @@ CONFIG_INT(decimation, "camera_decimation");
 CONFIG_BOOL(enable_isp, "camera_enable_isp");
 CONFIG_BOOL(enable_binning, "camera_enable_binning");
 CONFIG_BOOL(enable_decimation, "camera_enable_decimation");
+CONFIG_FLOAT(gamma, "camera_gamma");
 
 CONFIG_STRING(topic, "ros_image_topic");
 CONFIG_STRING(ros_image_encoding, "ros_image_encoding");
@@ -101,13 +103,15 @@ void WriteSetting(const std::string& setting,
                   const ValueType& value,
                   Spinnaker::GenApi::INodeMap& nodeMap) {
   Spinnaker::GenApi::CPointer<SettingType> setting_node = 
-      nodeMap.GetNode(setting.c_str());
-  LOG_IF(WARNING, !Spinnaker::GenApi::IsAvailable(setting_node)) 
-      << "\n" << setting << " not available!";
-  if (!Spinnaker::GenApi::IsAvailable(setting_node)) return;
-  LOG_IF(WARNING, !Spinnaker::GenApi::IsWritable(setting_node)) 
-      << "\n" << setting << " not writable!";
-  if (!Spinnaker::GenApi::IsWritable(setting_node)) return;
+      nodeMap.GetNode(setting.c_str());   
+  if (!Spinnaker::GenApi::IsAvailable(setting_node)) {
+    cout << "Setting " << setting << " not available\n";
+    return;
+  }
+  if (!Spinnaker::GenApi::IsWritable(setting_node)) {
+    cout << "Setting " << setting << " not writable\n";
+    return;
+  }
   setting_node->SetValue(value);
   cout << setting << " set to " << value << "\n";
 }
@@ -118,9 +122,9 @@ ValueType ReadSetting(const std::string& setting,
   Spinnaker::GenApi::CPointer<SettingType> setting_node = 
       nodeMap.GetNode(setting.c_str());
   CHECK(Spinnaker::GenApi::IsAvailable(setting_node)) 
-      << "\n" << setting << " not available!";
+      << "\n" << setting << " not available\n";
   CHECK(Spinnaker::GenApi::IsReadable(setting_node)) 
-      << "\n" << setting << " not readable!";
+      << "\n" << setting << " not readable\n";
   return setting_node->GetValue();
 }
 
@@ -146,14 +150,16 @@ void SetEnum(const std::string& setting,
   CHECK(Spinnaker::GenApi::IsReadable(setting_node)) 
       << "\n" << setting << " not readable!";
   CEnumEntryPtr enum_entry = setting_node->GetEntryByName(value.c_str());
-  LOG_IF(WARNING, !IsAvailable(enum_entry)) 
-      << "\nEnum entry \"" << value << "\" for setting \"" << setting 
-      << "\" Not available";
-  if (!IsAvailable(enum_entry)) return;
-  LOG_IF(WARNING, !IsReadable(enum_entry))
-      << "\nEnum entry \"" << value << "\" for setting \"" << setting 
-      << "\" not readable";
-  if (!IsReadable(enum_entry)) return;
+  if (!IsAvailable(enum_entry)) {
+    cout << "Enum entry \"" << value << "\" for setting \"" << setting 
+      << "\" Not available\n";
+    return;
+  }
+  if (!IsReadable(enum_entry)) {
+    cout << "Enum entry \"" << value << "\" for setting \"" << setting 
+      << "\" not readable\n";
+    return;
+  }
   setting_node->SetIntValue(enum_entry->GetValue());
   cout << setting << " set to " << value << "\n";
 }
@@ -162,18 +168,6 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
   // Retrieve GenICam nodemap
   Spinnaker::GenApi::INodeMap& nodeMap = camera->GetNodeMap();
   try {
-    cout << "DeviceMaxThroughput: " 
-         << ReadSetting<IInteger, int>("DeviceMaxThroughput", nodeMap)
-         << "\n";
-    cout << "DeviceLinkSpeed: " 
-         << ReadSetting<IInteger, int>("DeviceLinkSpeed", nodeMap)
-         << "\n";
-    cout << "DeviceLinkThroughputLimit: " 
-         << ReadSetting<IInteger, int>("DeviceLinkThroughputLimit", nodeMap)
-         << "\n";
-    cout << "DeviceLinkBandwidthReserve: " 
-         << ReadSetting<IFloat, float>("DeviceLinkBandwidthReserve", nodeMap)
-         << "\n";
     SetEnum("PixelFormat", CONFIG_img_fmt, nodeMap);
     SetEnum("ExposureAuto", "Off", nodeMap);
     SetEnum("ExposureMode", "Timed", nodeMap);
@@ -186,6 +180,9 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
         "IspEnable", CONFIG_enable_isp, nodeMap);
     WriteSetting<Spinnaker::GenApi::IFloat, float>(
         "ExposureTime", CONFIG_exposure, nodeMap);
+    WriteSetting<Spinnaker::GenApi::IFloat, float>(
+        "Gamma", CONFIG_gamma, nodeMap);
+    SetEnum("GainAuto", "Off", nodeMap);
     WriteSetting<Spinnaker::GenApi::IBoolean, float>(
         "AcquisitionFrameRateEnable", false, nodeMap);
     if (CONFIG_enable_decimation) {
@@ -202,7 +199,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     }
     // WriteSetting<Spinnaker::GenApi::IFloat, float>(
     //     "AcquisitionFrameRate", 30.0f, nodeMap);
-    cout << "Resulting frame rate: " 
+    cout << "\n\nResulting frame rate: " 
          << ReadSetting<Spinnaker::GenApi::IFloat, float>("AcquisitionResultingFrameRate", nodeMap) << "\n";
     cout << "Frame rate: " 
          << ReadSetting<Spinnaker::GenApi::IFloat, float>(
@@ -212,8 +209,17 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
          << ReadSetting<Spinnaker::GenApi::IInteger, float>(
         "BinningVertical", nodeMap)
         << "\n";
-    cout << "Exposure Auto: " 
-         << ReadEnum("ExposureAuto", nodeMap)
+    cout << "DeviceMaxThroughput: " 
+         << ReadSetting<IInteger, int>("DeviceMaxThroughput", nodeMap)
+         << "\n";
+    cout << "DeviceLinkSpeed: " 
+         << ReadSetting<IInteger, int>("DeviceLinkSpeed", nodeMap)
+         << "\n";
+    cout << "DeviceLinkThroughputLimit: " 
+         << ReadSetting<IInteger, int>("DeviceLinkThroughputLimit", nodeMap)
+         << "\n";
+    cout << "DeviceLinkBandwidthReserve: " 
+         << ReadSetting<IFloat, float>("DeviceLinkBandwidthReserve", nodeMap)
          << "\n";
   } catch (Spinnaker::Exception& e) {
       LOG(FATAL) << "Spinnaker Error: " << e.what();
@@ -245,8 +251,13 @@ void CaptureLoop(CameraPtr pCam) {
 
     image.header.frame_id = CONFIG_frame_id;
     image.width = CONFIG_img_width;
-    image.height = CONFIG_img_height;
-    image.encoding = CONFIG_ros_image_encoding;
+    image.height = CONFIG_img_height;    
+    if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
+      image.encoding = sensor_msgs::image_encodings::BGR8;
+    } else {
+      image.encoding = CONFIG_ros_image_encoding;
+    }
+
     while (ros::ok()) {
       ImagePtr pResultImage = pCam->GetNextImage(1000);
       if (pResultImage->IsIncomplete()) {
@@ -255,12 +266,22 @@ void CaptureLoop(CameraPtr pCam) {
                   << endl;
       } else {
         image.header.stamp.fromSec(
-              1e-9 * static_cast<double>(pResultImage->GetTimeStamp()));
-        image.step = pResultImage->GetStride();
-        image.data.resize(
-            std::min<uint64_t>(image.height * image.step, pResultImage->GetBufferSize()));
-        memcpy(image.data.data(), 
-            pResultImage->GetData(), image.data.size());
+            1e-9 * static_cast<double>(pResultImage->GetTimeStamp()));
+        if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
+          ImagePtr color_image = pResultImage->Convert(
+              PixelFormat_BGR8, Spinnaker::NEAREST_NEIGHBOR);
+          image.step = color_image->GetStride();
+          image.data.resize(
+              std::min<uint64_t>(image.height * image.step, color_image->GetBufferSize()));
+          memcpy(image.data.data(), 
+              color_image->GetData(), image.data.size());
+        } else {
+          image.step = pResultImage->GetStride();
+          image.data.resize(
+              std::min<uint64_t>(image.height * image.step, pResultImage->GetBufferSize()));
+          memcpy(image.data.data(), 
+              pResultImage->GetData(), image.data.size());
+        }
         image_pub_.publish(image);
         if (FLAGS_v > 0) {
           printf("%dx%d %lu Image captured, t=%f\n",
