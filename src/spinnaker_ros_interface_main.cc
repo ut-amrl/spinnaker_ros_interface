@@ -38,8 +38,19 @@ DEFINE_bool(list, false, "List cameras");
 
 DEFINE_string(config, "config/blackfly-s.lua", "Config file to load");
 
-CONFIG_STRING(serial, "serial");
-CONFIG_STRING(topic, "image_topic");
+CONFIG_STRING(serial, "camera_serial");
+CONFIG_INT(img_width, "camera_img_width");
+CONFIG_INT(img_height, "camera_img_height");
+CONFIG_STRING(img_fmt, "camera_img_fmt");
+CONFIG_FLOAT(exposure, "camera_exposure");
+CONFIG_INT(binning, "camera_binning");
+CONFIG_INT(decimation, "camera_decimation");
+CONFIG_BOOL(enable_isp, "camera_enable_isp");
+CONFIG_BOOL(enable_binning, "camera_enable_binning");
+CONFIG_BOOL(enable_decimation, "camera_enable_decimation");
+
+CONFIG_STRING(topic, "ros_image_topic");
+CONFIG_STRING(ros_image_encoding, "ros_image_encoding");
 
 ros::Publisher image_pub_;
 
@@ -85,57 +96,125 @@ CameraPtr OpenCamera(CameraList& cam_list) {
   }
 }
 
+template<typename SettingType, typename ValueType>
+void WriteSetting(const std::string& setting, 
+                  const ValueType& value,
+                  Spinnaker::GenApi::INodeMap& nodeMap) {
+  Spinnaker::GenApi::CPointer<SettingType> setting_node = 
+      nodeMap.GetNode(setting.c_str());
+  LOG_IF(WARNING, !Spinnaker::GenApi::IsAvailable(setting_node)) 
+      << "\n" << setting << " not available!";
+  if (!Spinnaker::GenApi::IsAvailable(setting_node)) return;
+  LOG_IF(WARNING, !Spinnaker::GenApi::IsWritable(setting_node)) 
+      << "\n" << setting << " not writable!";
+  if (!Spinnaker::GenApi::IsWritable(setting_node)) return;
+  setting_node->SetValue(value);
+  cout << setting << " set to " << value << "\n";
+}
+
+template<typename SettingType, typename ValueType>
+ValueType ReadSetting(const std::string& setting,
+                      Spinnaker::GenApi::INodeMap& nodeMap) {
+  Spinnaker::GenApi::CPointer<SettingType> setting_node = 
+      nodeMap.GetNode(setting.c_str());
+  CHECK(Spinnaker::GenApi::IsAvailable(setting_node)) 
+      << "\n" << setting << " not available!";
+  CHECK(Spinnaker::GenApi::IsReadable(setting_node)) 
+      << "\n" << setting << " not readable!";
+  return setting_node->GetValue();
+}
+
+
+std::string ReadEnum(const std::string& setting,
+                     Spinnaker::GenApi::INodeMap& nodeMap) {
+  Spinnaker::GenApi::CEnumerationPtr setting_node = 
+      nodeMap.GetNode(setting.c_str());
+  CHECK(Spinnaker::GenApi::IsAvailable(setting_node)) 
+      << "\n" << setting << " not available!";
+  CHECK(Spinnaker::GenApi::IsReadable(setting_node)) 
+      << "\n" << setting << " not readable!";
+  return setting_node->GetCurrentEntry()->GetSymbolic().c_str();
+}
+
+void SetEnum(const std::string& setting,
+             const std::string& value,
+             Spinnaker::GenApi::INodeMap& nodeMap) {
+  Spinnaker::GenApi::CEnumerationPtr setting_node = 
+      nodeMap.GetNode(setting.c_str());
+  CHECK(Spinnaker::GenApi::IsAvailable(setting_node)) 
+      << "\n" << setting << " not available!";
+  CHECK(Spinnaker::GenApi::IsReadable(setting_node)) 
+      << "\n" << setting << " not readable!";
+  CEnumEntryPtr enum_entry = setting_node->GetEntryByName(value.c_str());
+  LOG_IF(WARNING, !IsAvailable(enum_entry)) 
+      << "\nEnum entry \"" << value << "\" for setting \"" << setting 
+      << "\" Not available";
+  if (!IsAvailable(enum_entry)) return;
+  LOG_IF(WARNING, !IsReadable(enum_entry))
+      << "\nEnum entry \"" << value << "\" for setting \"" << setting 
+      << "\" not readable";
+  if (!IsReadable(enum_entry)) return;
+  setting_node->SetIntValue(enum_entry->GetValue());
+  cout << setting << " set to " << value << "\n";
+}
+
 void ConfigureCamera(Spinnaker::CameraPtr camera) {
   // Retrieve GenICam nodemap
   Spinnaker::GenApi::INodeMap& nodeMap = camera->GetNodeMap();
   try {
-    CEnumerationPtr ptrPixelFormat = nodeMap.GetNode("PixelFormat");
-    if (IsAvailable(ptrPixelFormat) && IsWritable(ptrPixelFormat)) {
-        // Retrieve the desired entry node from the enumeration node
-        CEnumEntryPtr ptrPixelFormatMono8 = 
-            ptrPixelFormat->GetEntryByName("BayerRG8");
-        // CEnumEntryPtr ptrPixelFormatMono8 = ptrPixelFormat->GetEntryByName("Mono8");
-        if (IsAvailable(ptrPixelFormatMono8) && IsReadable(ptrPixelFormatMono8)) {
-            // Retrieve the integer value from the entry node
-            int64_t pixelFormatMono8 = ptrPixelFormatMono8->GetValue();
-            // Set integer as new value for enumeration node
-            ptrPixelFormat->SetIntValue(pixelFormatMono8);
-        } else {
-            cout << "Pixel format mono 8 not available..." << endl;
-        }
-    } else {
-        cout << "Pixel format not available..." << endl;
+    cout << "DeviceMaxThroughput: " 
+         << ReadSetting<IInteger, int>("DeviceMaxThroughput", nodeMap)
+         << "\n";
+    cout << "DeviceLinkSpeed: " 
+         << ReadSetting<IInteger, int>("DeviceLinkSpeed", nodeMap)
+         << "\n";
+    cout << "DeviceLinkThroughputLimit: " 
+         << ReadSetting<IInteger, int>("DeviceLinkThroughputLimit", nodeMap)
+         << "\n";
+    cout << "DeviceLinkBandwidthReserve: " 
+         << ReadSetting<IFloat, float>("DeviceLinkBandwidthReserve", nodeMap)
+         << "\n";
+    SetEnum("PixelFormat", CONFIG_img_fmt, nodeMap);
+    SetEnum("ExposureAuto", "Off", nodeMap);
+    SetEnum("ExposureMode", "Timed", nodeMap);
+    SetEnum("BinningSelector", "Sensor", nodeMap);
+    WriteSetting<IInteger, int>("Width", CONFIG_img_width, nodeMap);
+    WriteSetting<IInteger, int>("Height", CONFIG_img_height, nodeMap);
+    SetEnum("BinningSelector", "All", nodeMap);
+    // SetEnum("BinningVerticalMode", "Additive", nodeMap);
+    WriteSetting<Spinnaker::GenApi::IBoolean, float>(
+        "IspEnable", CONFIG_enable_isp, nodeMap);
+    WriteSetting<Spinnaker::GenApi::IFloat, float>(
+        "ExposureTime", CONFIG_exposure, nodeMap);
+    WriteSetting<Spinnaker::GenApi::IBoolean, float>(
+        "AcquisitionFrameRateEnable", false, nodeMap);
+    if (CONFIG_enable_decimation) {
+      WriteSetting<Spinnaker::GenApi::IInteger, float>(
+          "DecimationHorizontal", CONFIG_decimation, nodeMap);
+      WriteSetting<Spinnaker::GenApi::IInteger, float>(
+          "DecimationVertical", CONFIG_decimation, nodeMap);
     }
-    CIntegerPtr ptrOffsetX = nodeMap.GetNode("OffsetX");
-    if (IsAvailable(ptrOffsetX) && IsWritable(ptrOffsetX)) {
-        ptrOffsetX->SetValue(ptrOffsetX->GetMin());
-        cout << "Offset X set to " << ptrOffsetX->GetMin() << "..." << endl;
-    } else {
-        cout << "Offset X not available..." << endl;
+    if (CONFIG_enable_binning) {
+      WriteSetting<Spinnaker::GenApi::IInteger, float>(
+          "BinningHorizontal", CONFIG_binning, nodeMap);
+      WriteSetting<Spinnaker::GenApi::IInteger, float>(
+          "BinningVertical", CONFIG_binning, nodeMap);
     }
-    CIntegerPtr ptrOffsetY = nodeMap.GetNode("OffsetY");
-    if (IsAvailable(ptrOffsetY) && IsWritable(ptrOffsetY)) {
-        ptrOffsetY->SetValue(ptrOffsetY->GetMin());
-        cout << "Offset Y set to " << ptrOffsetY->GetValue() << "..." << endl;
-    } else {
-        cout << "Offset Y not available..." << endl;
-    }
-    CIntegerPtr ptrWidth = nodeMap.GetNode("Width");
-    if (IsAvailable(ptrWidth) && IsWritable(ptrWidth)) {
-        int64_t widthToSet = ptrWidth->GetMax();
-        ptrWidth->SetValue(widthToSet);
-        cout << "Width set to " << ptrWidth->GetValue() << "..." << endl;
-    } else {
-        cout << "Width not available..." << endl;
-    }
-    CIntegerPtr ptrHeight = nodeMap.GetNode("Height");
-    if (IsAvailable(ptrHeight) && IsWritable(ptrHeight)) {
-        int64_t heightToSet = ptrHeight->GetMax();
-        ptrHeight->SetValue(heightToSet);
-        cout << "Height set to " << ptrHeight->GetValue() << "..." << endl << endl;
-    } else {
-        cout << "Height not available..." << endl << endl;
-    }
+    // WriteSetting<Spinnaker::GenApi::IFloat, float>(
+    //     "AcquisitionFrameRate", 30.0f, nodeMap);
+    cout << "Resulting frame rate: " 
+         << ReadSetting<Spinnaker::GenApi::IFloat, float>("AcquisitionResultingFrameRate", nodeMap) << "\n";
+    cout << "Frame rate: " 
+         << ReadSetting<Spinnaker::GenApi::IFloat, float>(
+        "AcquisitionFrameRate", nodeMap)
+        << "\n";
+    cout << "BinningVertical: " 
+         << ReadSetting<Spinnaker::GenApi::IInteger, float>(
+        "BinningVertical", nodeMap)
+        << "\n";
+    cout << "Exposure Auto: " 
+         << ReadEnum("ExposureAuto", nodeMap)
+         << "\n";
   } catch (Spinnaker::Exception& e) {
       LOG(FATAL) << "Spinnaker Error: " << e.what();
   }
@@ -157,6 +236,7 @@ void CaptureLoop(CameraPtr pCam) {
         ptrAcquisitionModeContinuous->GetValue();
     ptrAcquisitionMode->SetIntValue(acquisitionModeContinuous);
 
+    
     // Begin acquiring images
     pCam->BeginAcquisition();
 
@@ -164,6 +244,9 @@ void CaptureLoop(CameraPtr pCam) {
     CONFIG_STRING(frame_id, "frame_id");
 
     image.header.frame_id = CONFIG_frame_id;
+    image.width = CONFIG_img_width;
+    image.height = CONFIG_img_height;
+    image.encoding = CONFIG_ros_image_encoding;
     while (ros::ok()) {
       ImagePtr pResultImage = pCam->GetNextImage(1000);
       if (pResultImage->IsIncomplete()) {
@@ -173,16 +256,16 @@ void CaptureLoop(CameraPtr pCam) {
       } else {
         image.header.stamp.fromSec(
               1e-9 * static_cast<double>(pResultImage->GetTimeStamp()));
-        image.width = pResultImage->GetWidth();
-        image.height = pResultImage->GetHeight();
         image.step = pResultImage->GetStride();
-        image.data.resize(pResultImage->GetBufferSize());
-        image.encoding = sensor_msgs::image_encodings::BAYER_BGGR8;
+        image.data.resize(
+            std::min<uint64_t>(image.height * image.step, pResultImage->GetBufferSize()));
         memcpy(image.data.data(), 
             pResultImage->GetData(), image.data.size());
         image_pub_.publish(image);
         if (FLAGS_v > 0) {
-          printf("Image captured, t=%f\n", image.header.stamp.toSec());
+          printf("%dx%d %lu Image captured, t=%f\n",
+              image.width, image.height, image.data.size(),
+              image.header.stamp.toSec());
         }
       }
 
@@ -201,7 +284,6 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, false);
   config_reader::ConfigReader config({FLAGS_config});
-
   if (FLAGS_list) {
     EnumerateCameras();
     return 0;
