@@ -13,7 +13,7 @@ Spinnaker ROS Driver
     ```
     ./install_spinnaker.sh
     ```
-1. The AMRL shared library [amrl_shared_lib](https://github.com/ut-amrl/amrl_shared_lib).
+1. The AMRL shared library [amrl_shared_lib](https://github.com/ut-amrl/amrl_shared_lib) and AMRL configuration reader [config_reader](https://github.com/ut-amrl/config-reader). NOTE that both are installed during submodule initialization in the Build instructions by default.
 1. Install dependencies:
     ```
     sudo apt install liblua5.1-0-dev
