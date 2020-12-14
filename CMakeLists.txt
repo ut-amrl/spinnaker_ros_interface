@@ -33,26 +33,28 @@ MESSAGE(STATUS "Build-Specific Libraries: ${BUILD_SPECIFIC_LIBRARIES}")
 
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/submodules")
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/submodules" ${PROJECT_SOURCE_DIR}/cmake)
+
+FIND_PACKAGE(SPINNAKER REQUIRED)
 
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/config_reader/include)
-INCLUDE_DIRECTORIES(/usr/include/spinnaker)
+INCLUDE_DIRECTORIES(${SPINNAKER_INCLUDE_DIRS})
 
 ADD_SUBDIRECTORY(src/shared)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/shared)
 
 SET(libs roslib roscpp glog gflags amrl_shared_lib lua5.1
-    ${BUILD_SPECIFIC_LIBRARIES})
+    ${BUILD_SPECIFIC_LIBRARIES} ${SPINNAKER_LIBS})
 
 ROSBUILD_ADD_EXECUTABLE(spinnaker_ros_interface
-    src/spinnaker_ros_interface_main.cc
+                        src/spinnaker_ros_interface_main.cc
 )
 TARGET_LINK_LIBRARIES(spinnaker_ros_interface
-    ${libs} Spinnaker)
+                      ${libs})
 
 ADD_EXECUTABLE(ImageFormatControl src/ImageFormatControl.cpp)
-TARGET_LINK_LIBRARIES(ImageFormatControl ${libs} Spinnaker)
+TARGET_LINK_LIBRARIES(ImageFormatControl ${libs})
 
