@@ -2,9 +2,6 @@
 
 Spinnaker ROS Driver
 
-[![Build Status](https://travis-ci.com/ut-amrl/spinnaker_ros_interface.svg?branch=master)](https://travis-ci.com/ut-amrl/spinnaker_ros_interface)
-
-
 ## Dependencies
 
 1. [ROS](http://wiki.ros.org/Installation/)
@@ -41,3 +38,18 @@ Spinnaker ROS Driver
 1. Edit the default config file `config/blackfly-s.lua`, or create your own camera config file
 1. Run `./bin/spinnaker_ros_interface` to run with the default config file
 1. Run `./bin/spinnaker_ros_interface --config <file.lua>` to run with the specified config file
+1. Run  `./bin/spinnaker_ros_interface __name:=<node_name>`to run with user specified ROS node name - required when running two or more nodes
+
+
+## Spinnaker SpinView QT Application
+
+The SDK provides a GUI with which you can verify camera connectivity and find information like camera serial number.
+
+1. Navigate to the Spinnaker binary directory 
+    ```
+    cd /opt/spinnaker/bin
+    ```
+1. Run SpinView application
+    ```
+    ./spinview_QT
+    ```
