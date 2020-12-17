@@ -27,6 +27,7 @@
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/image_encodings.h"
+#include "image_transport/image_transport.h"
 #include "Spinnaker.h"
 #include "SpinGenApi/SpinnakerGenApi.h"
 
@@ -54,7 +55,7 @@ CONFIG_FLOAT(gamma, "camera_gamma");
 CONFIG_STRING(topic, "ros_image_topic");
 CONFIG_STRING(ros_image_encoding, "ros_image_encoding");
 
-ros::Publisher image_pub_;
+image_transport::Publisher image_pub_;
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -311,12 +312,15 @@ int main(int argc, char* argv[]) {
   }
   ros::init(argc, argv, "spinnaker_ros_interface");
   ros::NodeHandle n;
-  image_pub_ = n.advertise<sensor_msgs::Image>(CONFIG_topic, 1, false);
+  image_transport::ImageTransport it(n);
+  image_pub_ = it.advertise(CONFIG_topic, 1, false);
+
   SystemPtr system = System::GetInstance();
   CameraList cam_list = system->GetCameras();
   CameraPtr camera = OpenCamera(cam_list);
   camera->Init();
   ConfigureCamera(camera);
   CaptureLoop(camera);
+  
   return 0;
 }
