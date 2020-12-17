@@ -247,6 +247,14 @@ void CaptureLoop(CameraPtr pCam) {
     // Begin acquiring images
     pCam->BeginAcquisition();
 
+    // Camera image acquisition time is referenced to when the
+    // camera is started. Here we use an offset time to put the 
+    // time stamps in a system clock referenced frame
+    ros::Time const ros_time_offset = ros::Time::now();
+    // The net_offset accounts for the FLIR clock being non-
+    // zero when the node starts
+    double net_offset{0.0};
+
     sensor_msgs::Image image;
     CONFIG_STRING(frame_id, "frame_id");
 
@@ -266,8 +274,12 @@ void CaptureLoop(CameraPtr pCam) {
                   << pResultImage->GetImageStatus() 
                   << endl;
       } else {
-        image.header.stamp.fromSec(
-            1e-9 * static_cast<double>(pResultImage->GetTimeStamp()));
+        // Executes on the first frame only and gives us the FLIR camera's clock offset
+        if( net_offset == 0.0 )
+        {
+          net_offset = ros_time_offset.sec - 1e-9 * ( static_cast<double>(pResultImage->GetTimeStamp()) - ros_time_offset.nsec );
+        }
+        image.header.stamp.fromSec( net_offset + 1e-9 * (static_cast<double>(pResultImage->GetTimeStamp())) );
         if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
           ImagePtr color_image = pResultImage->Convert(
               PixelFormat_BGR8, Spinnaker::NEAREST_NEIGHBOR);
@@ -321,6 +333,6 @@ int main(int argc, char* argv[]) {
   camera->Init();
   ConfigureCamera(camera);
   CaptureLoop(camera);
-  
+
   return 0;
 }
