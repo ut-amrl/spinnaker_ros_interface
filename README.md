@@ -51,5 +51,5 @@ The SDK provides a GUI with which you can verify camera connectivity and find in
     ```
 1. Run SpinView application
     ```
-    ./spinview_QT
+    ./SpinView_QT
     ```
