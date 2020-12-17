@@ -17,20 +17,17 @@ Spinnaker ROS Driver
     ```
 
 ## Build
-
+1. In the terminal source your ROS install 
+    ```
+    source /opt/ros/noetic/setup.bash 
+    ```
 1. Navigate to the `spinnaker_ros_interface` directory.
 
 1. Initialize the submodules:
     ```
     git submodule update --init
     ```
-
-1. Add the project directory to the `ROS_PACKAGE_PATH` environment variable:
-    ```
-    export ROS_PACKAGE_PATH=`pwd`:$ROS_PACKAGE_PATH
-    ```
-
-
+    
 1. Run `make`
 
 ## Usage
