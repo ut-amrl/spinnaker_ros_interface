@@ -22,12 +22,6 @@ ELSEIF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
   SET(BUILD_SPECIFIC_LIBRARIES "")
 ENDIF()
 
-INCLUDE($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
-ROSBUILD_INIT()
-SET(ROS_BUILD_STATIC_LIBS true)
-SET(ROS_BUILD_SHARED_LIBS false)
-
-MESSAGE(STATUS "ROS-Overrride Build Type: ${CMAKE_BUILD_TYPE}")
 MESSAGE(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
 MESSAGE(STATUS "Build-Specific Libraries: ${BUILD_SPECIFIC_LIBRARIES}")
 
@@ -36,24 +30,26 @@ SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/submodules" ${PROJECT_SOURCE_DIR}/cmake)
 
 FIND_PACKAGE(SPINNAKER REQUIRED)
+FIND_PACKAGE(roscpp REQUIRED)
+FIND_PACKAGE(roslib REQUIRED)
 
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/config_reader/include)
 INCLUDE_DIRECTORIES(${SPINNAKER_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(${roscpp_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(${roslib_INCLUDE_DIRS})
 
 ADD_SUBDIRECTORY(src/shared)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/shared)
 
-SET(libs roslib roscpp glog gflags amrl_shared_lib lua5.1
-    ${BUILD_SPECIFIC_LIBRARIES} ${SPINNAKER_LIBS})
+SET(libs glog gflags amrl_shared_lib lua5.1
+    ${BUILD_SPECIFIC_LIBRARIES} ${SPINNAKER_LIBS}
+    ${roscpp_LIBRARIES} ${roslib_LIBRARIES})
 
-ROSBUILD_ADD_EXECUTABLE(spinnaker_ros_interface
-                        src/spinnaker_ros_interface_main.cc
-)
-TARGET_LINK_LIBRARIES(spinnaker_ros_interface
-                      ${libs})
+ADD_EXECUTABLE(spinnaker_ros_interface src/spinnaker_ros_interface_main.cc)
+TARGET_LINK_LIBRARIES(spinnaker_ros_interface ${libs})
 
 ADD_EXECUTABLE(ImageFormatControl src/ImageFormatControl.cpp)
 TARGET_LINK_LIBRARIES(ImageFormatControl ${libs})
