@@ -27,6 +27,7 @@
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/image_encodings.h"
+#include "image_transport/image_transport.h"
 #include "Spinnaker.h"
 #include "SpinGenApi/SpinnakerGenApi.h"
 
@@ -54,7 +55,7 @@ CONFIG_FLOAT(gamma, "camera_gamma");
 CONFIG_STRING(topic, "ros_image_topic");
 CONFIG_STRING(ros_image_encoding, "ros_image_encoding");
 
-ros::Publisher image_pub_;
+image_transport::Publisher image_pub_;
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -199,26 +200,26 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     }
     // WriteSetting<Spinnaker::GenApi::IFloat, float>(
     //     "AcquisitionFrameRate", 30.0f, nodeMap);
-    cout << "\n\nResulting frame rate: " 
+    cout << "\n\nResulting frame rate: "
          << ReadSetting<Spinnaker::GenApi::IFloat, float>("AcquisitionResultingFrameRate", nodeMap) << "\n";
     cout << "Frame rate: " 
          << ReadSetting<Spinnaker::GenApi::IFloat, float>(
         "AcquisitionFrameRate", nodeMap)
         << "\n";
-    cout << "BinningVertical: " 
+    cout << "BinningVertical: "
          << ReadSetting<Spinnaker::GenApi::IInteger, float>(
         "BinningVertical", nodeMap)
         << "\n";
-    cout << "DeviceMaxThroughput: " 
+    cout << "DeviceMaxThroughput: "
          << ReadSetting<IInteger, int>("DeviceMaxThroughput", nodeMap)
          << "\n";
-    cout << "DeviceLinkSpeed: " 
+    cout << "DeviceLinkSpeed: "
          << ReadSetting<IInteger, int>("DeviceLinkSpeed", nodeMap)
          << "\n";
-    cout << "DeviceLinkThroughputLimit: " 
+    cout << "DeviceLinkThroughputLimit: "
          << ReadSetting<IInteger, int>("DeviceLinkThroughputLimit", nodeMap)
          << "\n";
-    cout << "DeviceLinkBandwidthReserve: " 
+    cout << "DeviceLinkBandwidthReserve: "
          << ReadSetting<IFloat, float>("DeviceLinkBandwidthReserve", nodeMap)
          << "\n";
   } catch (Spinnaker::Exception& e) {
@@ -234,15 +235,15 @@ void CaptureLoop(CameraPtr pCam) {
     CHECK(IsAvailable(ptrAcquisitionMode)) << "Acquisition unavailable";
     CHECK(IsWritable(ptrAcquisitionMode)) << "Unable to set acquisition mode";
     CEnumEntryPtr ptrAcquisitionModeContinuous = ptrAcquisitionMode->GetEntryByName("Continuous");
-    CHECK(IsAvailable(ptrAcquisitionModeContinuous)) 
+    CHECK(IsAvailable(ptrAcquisitionModeContinuous))
         << "Continuous acquisition mode unavailable";
-    CHECK(IsReadable(ptrAcquisitionModeContinuous)) 
+    CHECK(IsReadable(ptrAcquisitionModeContinuous))
         << "Continuous acquisition mode not readable";
-    int64_t acquisitionModeContinuous = 
+    int64_t acquisitionModeContinuous =
         ptrAcquisitionModeContinuous->GetValue();
     ptrAcquisitionMode->SetIntValue(acquisitionModeContinuous);
 
-    
+
     // Begin acquiring images
     pCam->BeginAcquisition();
 
@@ -251,22 +252,30 @@ void CaptureLoop(CameraPtr pCam) {
 
     image.header.frame_id = CONFIG_frame_id;
     image.width = CONFIG_img_width;
-    image.height = CONFIG_img_height;    
+    image.height = CONFIG_img_height;
     if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
       image.encoding = sensor_msgs::image_encodings::BGR8;
     } else {
       image.encoding = CONFIG_ros_image_encoding;
     }
 
+    // The net_offset accounts for the FLIR clock being non-
+    // zero when the node starts and the ROS wall time
+    double net_time_offset{0.0};
+
     while (ros::ok()) {
       ImagePtr pResultImage = pCam->GetNextImage(1000);
       if (pResultImage->IsIncomplete()) {
-        std::cerr << "Image incomplete with image status " 
-                  << pResultImage->GetImageStatus() 
+        std::cerr << "Image incomplete with image status "
+                  << pResultImage->GetImageStatus()
                   << endl;
       } else {
-        image.header.stamp.fromSec(
-            1e-9 * static_cast<double>(pResultImage->GetTimeStamp()));
+        // Executes on the first frame only and gives us the net ROS/FLIR camera clock offset
+        if(net_time_offset == 0.0){
+          net_time_offset = ros::Time::now().toSec() - 1e-9 * static_cast<double>(pResultImage->GetTimeStamp());
+        }
+        image.header.stamp.fromSec(net_time_offset + 1e-9 * (static_cast<double>(pResultImage->GetTimeStamp())));
+
         if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
           ImagePtr color_image = pResultImage->Convert(
               PixelFormat_BGR8, Spinnaker::NEAREST_NEIGHBOR);
@@ -311,12 +320,15 @@ int main(int argc, char* argv[]) {
   }
   ros::init(argc, argv, "spinnaker_ros_interface");
   ros::NodeHandle n;
-  image_pub_ = n.advertise<sensor_msgs::Image>(CONFIG_topic, 1, false);
+  image_transport::ImageTransport it(n);
+  image_pub_ = it.advertise(CONFIG_topic, 1, false);
+
   SystemPtr system = System::GetInstance();
   CameraList cam_list = system->GetCameras();
   CameraPtr camera = OpenCamera(cam_list);
   camera->Init();
   ConfigureCamera(camera);
   CaptureLoop(camera);
+
   return 0;
 }
