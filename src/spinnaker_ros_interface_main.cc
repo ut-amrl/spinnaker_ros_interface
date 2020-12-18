@@ -272,8 +272,7 @@ void CaptureLoop(CameraPtr pCam) {
       } else {
         // Executes on the first frame only and gives us the net ROS/FLIR camera clock offset
         if(net_time_offset == 0.0){
-          ros::Time const ros_time_offset = ros::Time::now();
-          net_time_offset = ros_time_offset.sec - 1e-9 * (static_cast<double>(pResultImage->GetTimeStamp()) - ros_time_offset.nsec);
+          net_time_offset = ros::Time::now().toSec() - 1e-9 * static_cast<double>(pResultImage->GetTimeStamp());
         }
         image.header.stamp.fromSec(net_time_offset + 1e-9 * (static_cast<double>(pResultImage->GetTimeStamp())));
 
