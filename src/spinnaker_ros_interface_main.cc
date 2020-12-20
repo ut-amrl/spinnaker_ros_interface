@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Joydeep Biswas, joydeepb@cs.utexas.edu
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
@@ -7,8 +7,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,16 +22,15 @@
 
 #include <iostream>
 
+#include "SpinGenApi/SpinnakerGenApi.h"
+#include "Spinnaker.h"
+#include "config_reader/config_reader.h"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+#include "image_transport/image_transport.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/image_encodings.h"
-#include "image_transport/image_transport.h"
-#include "Spinnaker.h"
-#include "SpinGenApi/SpinnakerGenApi.h"
-
-#include "config_reader/config_reader.h"
 
 DECLARE_int32(v);
 
@@ -76,19 +75,19 @@ void EnumerateCameras() {
       INodeMap& node_map = camera->GetTLDeviceNodeMap();
       CStringPtr serial = node_map.GetNode("DeviceSerialNumber");
       CStringPtr model = node_map.GetNode("DeviceModelName");
-      printf("%lu Serial:%s Type:%s\n", i, 
-          serial->ToString().c_str(), model->ToString().c_str());
+      printf("%lu Serial:%s Type:%s\n", i, serial->ToString().c_str(),
+             model->ToString().c_str());
       printf("\n");
     }
     cam_list.Clear();
-  } catch(int e) {
+  } catch (int e) {
     fprintf(stderr, "Unknown exception!\n");
   }
 }
 
 CameraPtr OpenCamera(CameraList& cam_list) {
   SystemPtr system = System::GetInstance();
-  
+
   CHECK_GT(cam_list.GetSize(), 0) << "\nNo cameras found, quitting.";
   if (CONFIG_serial.empty()) {
     printf("Using first camera\n");
@@ -99,12 +98,11 @@ CameraPtr OpenCamera(CameraList& cam_list) {
   }
 }
 
-template<typename SettingType, typename ValueType>
-void WriteSetting(const std::string& setting, 
-                  const ValueType& value,
+template <typename SettingType, typename ValueType>
+void WriteSetting(const std::string& setting, const ValueType& value,
                   Spinnaker::GenApi::INodeMap& nodeMap) {
-  Spinnaker::GenApi::CPointer<SettingType> setting_node = 
-      nodeMap.GetNode(setting.c_str());   
+  Spinnaker::GenApi::CPointer<SettingType> setting_node =
+      nodeMap.GetNode(setting.c_str());
   if (!Spinnaker::GenApi::IsAvailable(setting_node)) {
     cout << "Setting " << setting << " not available\n";
     return;
@@ -117,48 +115,52 @@ void WriteSetting(const std::string& setting,
   cout << setting << " set to " << value << "\n";
 }
 
-template<typename SettingType, typename ValueType>
+template <typename SettingType, typename ValueType>
 ValueType ReadSetting(const std::string& setting,
                       Spinnaker::GenApi::INodeMap& nodeMap) {
-  Spinnaker::GenApi::CPointer<SettingType> setting_node = 
+  Spinnaker::GenApi::CPointer<SettingType> setting_node =
       nodeMap.GetNode(setting.c_str());
-  CHECK(Spinnaker::GenApi::IsAvailable(setting_node)) 
-      << "\n" << setting << " not available\n";
-  CHECK(Spinnaker::GenApi::IsReadable(setting_node)) 
-      << "\n" << setting << " not readable\n";
+  CHECK(Spinnaker::GenApi::IsAvailable(setting_node))
+      << "\n"
+      << setting << " not available\n";
+  CHECK(Spinnaker::GenApi::IsReadable(setting_node))
+      << "\n"
+      << setting << " not readable\n";
   return setting_node->GetValue();
 }
 
-
 std::string ReadEnum(const std::string& setting,
                      Spinnaker::GenApi::INodeMap& nodeMap) {
-  Spinnaker::GenApi::CEnumerationPtr setting_node = 
+  Spinnaker::GenApi::CEnumerationPtr setting_node =
       nodeMap.GetNode(setting.c_str());
-  CHECK(Spinnaker::GenApi::IsAvailable(setting_node)) 
-      << "\n" << setting << " not available!";
-  CHECK(Spinnaker::GenApi::IsReadable(setting_node)) 
-      << "\n" << setting << " not readable!";
+  CHECK(Spinnaker::GenApi::IsAvailable(setting_node))
+      << "\n"
+      << setting << " not available!";
+  CHECK(Spinnaker::GenApi::IsReadable(setting_node))
+      << "\n"
+      << setting << " not readable!";
   return setting_node->GetCurrentEntry()->GetSymbolic().c_str();
 }
 
-void SetEnum(const std::string& setting,
-             const std::string& value,
+void SetEnum(const std::string& setting, const std::string& value,
              Spinnaker::GenApi::INodeMap& nodeMap) {
-  Spinnaker::GenApi::CEnumerationPtr setting_node = 
+  Spinnaker::GenApi::CEnumerationPtr setting_node =
       nodeMap.GetNode(setting.c_str());
-  CHECK(Spinnaker::GenApi::IsAvailable(setting_node)) 
-      << "\n" << setting << " not available!";
-  CHECK(Spinnaker::GenApi::IsReadable(setting_node)) 
-      << "\n" << setting << " not readable!";
+  CHECK(Spinnaker::GenApi::IsAvailable(setting_node))
+      << "\n"
+      << setting << " not available!";
+  CHECK(Spinnaker::GenApi::IsReadable(setting_node))
+      << "\n"
+      << setting << " not readable!";
   CEnumEntryPtr enum_entry = setting_node->GetEntryByName(value.c_str());
   if (!IsAvailable(enum_entry)) {
-    cout << "Enum entry \"" << value << "\" for setting \"" << setting 
-      << "\" Not available\n";
+    cout << "Enum entry \"" << value << "\" for setting \"" << setting
+         << "\" Not available\n";
     return;
   }
   if (!IsReadable(enum_entry)) {
-    cout << "Enum entry \"" << value << "\" for setting \"" << setting 
-      << "\" not readable\n";
+    cout << "Enum entry \"" << value << "\" for setting \"" << setting
+         << "\" not readable\n";
     return;
   }
   setting_node->SetIntValue(enum_entry->GetValue());
@@ -179,10 +181,10 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     // SetEnum("BinningVerticalMode", "Additive", nodeMap);
     WriteSetting<Spinnaker::GenApi::IBoolean, float>(
         "IspEnable", CONFIG_enable_isp, nodeMap);
-    WriteSetting<Spinnaker::GenApi::IFloat, float>(
-        "ExposureTime", CONFIG_exposure, nodeMap);
-    WriteSetting<Spinnaker::GenApi::IFloat, float>(
-        "Gamma", CONFIG_gamma, nodeMap);
+    WriteSetting<Spinnaker::GenApi::IFloat, float>("ExposureTime",
+                                                   CONFIG_exposure, nodeMap);
+    WriteSetting<Spinnaker::GenApi::IFloat, float>("Gamma", CONFIG_gamma,
+                                                   nodeMap);
     SetEnum("GainAuto", "Off", nodeMap);
     WriteSetting<Spinnaker::GenApi::IBoolean, float>(
         "AcquisitionFrameRateEnable", false, nodeMap);
@@ -193,29 +195,29 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
           "DecimationVertical", CONFIG_decimation, nodeMap);
     }
     if (CONFIG_enable_binning) {
-      WriteSetting<Spinnaker::GenApi::IInteger, float>(
-          "BinningHorizontal", CONFIG_binning, nodeMap);
-      WriteSetting<Spinnaker::GenApi::IInteger, float>(
-          "BinningVertical", CONFIG_binning, nodeMap);
+      WriteSetting<Spinnaker::GenApi::IInteger, float>("BinningHorizontal",
+                                                       CONFIG_binning, nodeMap);
+      WriteSetting<Spinnaker::GenApi::IInteger, float>("BinningVertical",
+                                                       CONFIG_binning, nodeMap);
     }
     // WriteSetting<Spinnaker::GenApi::IFloat, float>(
     //     "AcquisitionFrameRate", 30.0f, nodeMap);
     cout << "\n\nResulting frame rate: "
-         << ReadSetting<Spinnaker::GenApi::IFloat, float>("AcquisitionResultingFrameRate", nodeMap) << "\n";
-    cout << "Frame rate: " 
          << ReadSetting<Spinnaker::GenApi::IFloat, float>(
-        "AcquisitionFrameRate", nodeMap)
-        << "\n";
+                "AcquisitionResultingFrameRate", nodeMap)
+         << "\n";
+    cout << "Frame rate: "
+         << ReadSetting<Spinnaker::GenApi::IFloat, float>(
+                "AcquisitionFrameRate", nodeMap)
+         << "\n";
     cout << "BinningVertical: "
-         << ReadSetting<Spinnaker::GenApi::IInteger, float>(
-        "BinningVertical", nodeMap)
-        << "\n";
+         << ReadSetting<Spinnaker::GenApi::IInteger, float>("BinningVertical",
+                                                            nodeMap)
+         << "\n";
     cout << "DeviceMaxThroughput: "
-         << ReadSetting<IInteger, int>("DeviceMaxThroughput", nodeMap)
-         << "\n";
+         << ReadSetting<IInteger, int>("DeviceMaxThroughput", nodeMap) << "\n";
     cout << "DeviceLinkSpeed: "
-         << ReadSetting<IInteger, int>("DeviceLinkSpeed", nodeMap)
-         << "\n";
+         << ReadSetting<IInteger, int>("DeviceLinkSpeed", nodeMap) << "\n";
     cout << "DeviceLinkThroughputLimit: "
          << ReadSetting<IInteger, int>("DeviceLinkThroughputLimit", nodeMap)
          << "\n";
@@ -223,7 +225,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
          << ReadSetting<IFloat, float>("DeviceLinkBandwidthReserve", nodeMap)
          << "\n";
   } catch (Spinnaker::Exception& e) {
-      LOG(FATAL) << "Spinnaker Error: " << e.what();
+    LOG(FATAL) << "Spinnaker Error: " << e.what();
   }
 }
 
@@ -234,7 +236,8 @@ void CaptureLoop(CameraPtr pCam) {
     CEnumerationPtr ptrAcquisitionMode = nodeMap.GetNode("AcquisitionMode");
     CHECK(IsAvailable(ptrAcquisitionMode)) << "Acquisition unavailable";
     CHECK(IsWritable(ptrAcquisitionMode)) << "Unable to set acquisition mode";
-    CEnumEntryPtr ptrAcquisitionModeContinuous = ptrAcquisitionMode->GetEntryByName("Continuous");
+    CEnumEntryPtr ptrAcquisitionModeContinuous =
+        ptrAcquisitionMode->GetEntryByName("Continuous");
     CHECK(IsAvailable(ptrAcquisitionModeContinuous))
         << "Continuous acquisition mode unavailable";
     CHECK(IsReadable(ptrAcquisitionModeContinuous))
@@ -242,7 +245,6 @@ void CaptureLoop(CameraPtr pCam) {
     int64_t acquisitionModeContinuous =
         ptrAcquisitionModeContinuous->GetValue();
     ptrAcquisitionMode->SetIntValue(acquisitionModeContinuous);
-
 
     // Begin acquiring images
     pCam->BeginAcquisition();
@@ -267,35 +269,36 @@ void CaptureLoop(CameraPtr pCam) {
       ImagePtr pResultImage = pCam->GetNextImage(1000);
       if (pResultImage->IsIncomplete()) {
         std::cerr << "Image incomplete with image status "
-                  << pResultImage->GetImageStatus()
-                  << endl;
+                  << pResultImage->GetImageStatus() << endl;
       } else {
-        // Executes on the first frame only and gives us the net ROS/FLIR camera clock offset
-        if(net_time_offset == 0.0){
-          net_time_offset = ros::Time::now().toSec() - 1e-9 * static_cast<double>(pResultImage->GetTimeStamp());
+        // Executes on the first frame only and gives us the net ROS/FLIR camera
+        // clock offset
+        if (net_time_offset == 0.0) {
+          net_time_offset =
+              ros::Time::now().toSec() -
+              1e-9 * static_cast<double>(pResultImage->GetTimeStamp());
         }
-        image.header.stamp.fromSec(net_time_offset + 1e-9 * (static_cast<double>(pResultImage->GetTimeStamp())));
+        image.header.stamp.fromSec(
+            net_time_offset +
+            1e-9 * (static_cast<double>(pResultImage->GetTimeStamp())));
 
         if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
           ImagePtr color_image = pResultImage->Convert(
               PixelFormat_BGR8, Spinnaker::NEAREST_NEIGHBOR);
           image.step = color_image->GetStride();
-          image.data.resize(
-              std::min<uint64_t>(image.height * image.step, color_image->GetBufferSize()));
-          memcpy(image.data.data(), 
-              color_image->GetData(), image.data.size());
+          image.data.resize(std::min<uint64_t>(image.height * image.step,
+                                               color_image->GetBufferSize()));
+          memcpy(image.data.data(), color_image->GetData(), image.data.size());
         } else {
           image.step = pResultImage->GetStride();
-          image.data.resize(
-              std::min<uint64_t>(image.height * image.step, pResultImage->GetBufferSize()));
-          memcpy(image.data.data(), 
-              pResultImage->GetData(), image.data.size());
+          image.data.resize(std::min<uint64_t>(image.height * image.step,
+                                               pResultImage->GetBufferSize()));
+          memcpy(image.data.data(), pResultImage->GetData(), image.data.size());
         }
         image_pub_.publish(image);
         if (FLAGS_v > 0) {
-          printf("%dx%d %lu Image captured, t=%f\n",
-              image.width, image.height, image.data.size(),
-              image.header.stamp.toSec());
+          printf("%dx%d %lu Image captured, t=%f\n", image.width, image.height,
+                 image.data.size(), image.header.stamp.toSec());
         }
       }
 
