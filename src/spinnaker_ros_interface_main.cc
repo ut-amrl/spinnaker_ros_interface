@@ -75,7 +75,9 @@ void EnumerateCameras() {
       INodeMap& node_map = camera->GetTLDeviceNodeMap();
       CStringPtr serial = node_map.GetNode("DeviceSerialNumber");
       CStringPtr model = node_map.GetNode("DeviceModelName");
-      printf("%lu Serial:%s Type:%s\n", i, serial->ToString().c_str(),
+      printf("%lu Serial:%s Type:%s\n",
+             i,
+             serial->ToString().c_str(),
              model->ToString().c_str());
       printf("\n");
     }
@@ -99,7 +101,8 @@ CameraPtr OpenCamera(CameraList& cam_list) {
 }
 
 template <typename SettingType, typename ValueType>
-void WriteSetting(const std::string& setting, const ValueType& value,
+void WriteSetting(const std::string& setting,
+                  const ValueType& value,
                   Spinnaker::GenApi::INodeMap& nodeMap) {
   Spinnaker::GenApi::CPointer<SettingType> setting_node =
       nodeMap.GetNode(setting.c_str());
@@ -142,7 +145,8 @@ std::string ReadEnum(const std::string& setting,
   return setting_node->GetCurrentEntry()->GetSymbolic().c_str();
 }
 
-void SetEnum(const std::string& setting, const std::string& value,
+void SetEnum(const std::string& setting,
+             const std::string& value,
              Spinnaker::GenApi::INodeMap& nodeMap) {
   Spinnaker::GenApi::CEnumerationPtr setting_node =
       nodeMap.GetNode(setting.c_str());
@@ -181,10 +185,10 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     // SetEnum("BinningVerticalMode", "Additive", nodeMap);
     WriteSetting<Spinnaker::GenApi::IBoolean, float>(
         "IspEnable", CONFIG_enable_isp, nodeMap);
-    WriteSetting<Spinnaker::GenApi::IFloat, float>("ExposureTime",
-                                                   CONFIG_exposure, nodeMap);
-    WriteSetting<Spinnaker::GenApi::IFloat, float>("Gamma", CONFIG_gamma,
-                                                   nodeMap);
+    WriteSetting<Spinnaker::GenApi::IFloat, float>(
+        "ExposureTime", CONFIG_exposure, nodeMap);
+    WriteSetting<Spinnaker::GenApi::IFloat, float>(
+        "Gamma", CONFIG_gamma, nodeMap);
     SetEnum("GainAuto", "Off", nodeMap);
     WriteSetting<Spinnaker::GenApi::IBoolean, float>(
         "AcquisitionFrameRateEnable", false, nodeMap);
@@ -195,10 +199,10 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
           "DecimationVertical", CONFIG_decimation, nodeMap);
     }
     if (CONFIG_enable_binning) {
-      WriteSetting<Spinnaker::GenApi::IInteger, float>("BinningHorizontal",
-                                                       CONFIG_binning, nodeMap);
-      WriteSetting<Spinnaker::GenApi::IInteger, float>("BinningVertical",
-                                                       CONFIG_binning, nodeMap);
+      WriteSetting<Spinnaker::GenApi::IInteger, float>(
+          "BinningHorizontal", CONFIG_binning, nodeMap);
+      WriteSetting<Spinnaker::GenApi::IInteger, float>(
+          "BinningVertical", CONFIG_binning, nodeMap);
     }
     // WriteSetting<Spinnaker::GenApi::IFloat, float>(
     //     "AcquisitionFrameRate", 30.0f, nodeMap);
@@ -297,8 +301,11 @@ void CaptureLoop(CameraPtr pCam) {
         }
         image_pub_.publish(image);
         if (FLAGS_v > 0) {
-          printf("%dx%d %lu Image captured, t=%f\n", image.width, image.height,
-                 image.data.size(), image.header.stamp.toSec());
+          printf("%dx%d %lu Image captured, t=%f\n",
+                 image.width,
+                 image.height,
+                 image.data.size(),
+                 image.header.stamp.toSec());
         }
       }
 

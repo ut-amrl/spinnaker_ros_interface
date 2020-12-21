@@ -213,7 +213,8 @@ int PrintDeviceInfo(INodeMap& nodeMap) {
 
 // This function acquires and saves 10 images from a device; please see
 // Acquisition example for more in-depth comments on acquiring images.
-int AcquireImages(CameraPtr pCam, INodeMap& nodeMap,
+int AcquireImages(CameraPtr pCam,
+                  INodeMap& nodeMap,
                   INodeMap& nodeMapTLDevice) {
   int result = 0;
 
