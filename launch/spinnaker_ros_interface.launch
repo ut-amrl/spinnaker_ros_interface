@@ -1,0 +1,10 @@
+<launch>
+    <arg name="camera_config" default="blackfly-s.lua"/>
+    <arg name="node_name" default="spinnaker_ros_interface"/>
+
+    <node pkg="spinnaker_ros_interface" 
+          type="spinnaker_ros_interface" 
+          name="$(arg node_name)" 
+          args="--config $(find spinnaker_ros_interface)/config/$(arg camera_config)"
+          output="screen"/>
+</launch>
