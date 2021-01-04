@@ -53,8 +53,11 @@ CONFIG_BOOL(enable_binning, "camera_enable_binning");
 CONFIG_BOOL(enable_decimation, "camera_enable_decimation");
 CONFIG_FLOAT(gamma, "camera_gamma");
 
+
+
 CONFIG_STRING(topic, "ros_image_topic");
 CONFIG_STRING(ros_image_encoding, "ros_image_encoding");
+CONFIG_BOOL(ros_pub_camera_info, "ros_pub_camera_info");
 
 image_transport::Publisher image_pub_;
 ros::Publisher camera_info_pub_;
@@ -264,15 +267,19 @@ void CaptureLoop(CameraPtr pCam) {
       image.encoding = CONFIG_ros_image_encoding;
     }    
 
-    camera_info_.header.frame_id = CONFIG_frame_id;
-    camera_info_.width = CONFIG_img_width;
-    camera_info_.height = CONFIG_img_height;
-    if (CONFIG_enable_binning == true){
-      camera_info_.binning_x = CONFIG_binning;
-      camera_info_.binning_y = CONFIG_binning;
-    } else{
-      camera_info_.binning_x = 0;
-      camera_info_.binning_y = 0;
+    if (CONFIG_ros_pub_camera_info){
+      camera_info_.header.frame_id = CONFIG_frame_id;
+      camera_info_.width = CONFIG_img_width;
+      camera_info_.height = CONFIG_img_height;
+
+      if (CONFIG_enable_binning == true){
+        camera_info_.binning_x = CONFIG_binning;
+        camera_info_.binning_y = CONFIG_binning;
+      } else {
+        camera_info_.binning_x = 0;
+        camera_info_.binning_y = 0;
+      }
+
     }
 
     // The net_offset accounts for the FLIR clock being non-
@@ -291,7 +298,12 @@ void CaptureLoop(CameraPtr pCam) {
           net_time_offset = ros::Time::now().toSec() - 1e-9 * static_cast<double>(pResultImage->GetTimeStamp());
         }
         image.header.stamp.fromSec(net_time_offset + 1e-9 * (static_cast<double>(pResultImage->GetTimeStamp())));
-        camera_info_.header.stamp =  image.header.stamp;
+
+        if (CONFIG_ros_pub_camera_info){
+          camera_info_.header.stamp =  image.header.stamp;
+          // Spin to check for and execute set_camera_info_srv_ service requests
+          ros::spinOnce();
+        }
 
         if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
           ImagePtr color_image = pResultImage->Convert(
@@ -355,9 +367,9 @@ int main(int argc, char* argv[]) {
   ros::init(argc, argv, "spinnaker_ros_interface");
   ros::NodeHandle nh;
   image_transport::ImageTransport it(nh);
-  image_pub_ = it.advertise(CONFIG_topic, 1, false);
+  image_pub_ = it.advertise(CONFIG_topic+"_image", 1, false);
   camera_info_pub_ = nh.advertise<sensor_msgs::CameraInfo>(CONFIG_topic+"/camera_info", 1, false);
-  set_camera_info_srv_ = nh.advertiseService(CONFIG_topic+"camera/set_camera_info", SetCameraInfoSrvCallback);
+  set_camera_info_srv_ = nh.advertiseService(CONFIG_topic+"/set_camera_info", SetCameraInfoSrvCallback);
 
   SystemPtr system = System::GetInstance();
   CameraList cam_list = system->GetCameras();
