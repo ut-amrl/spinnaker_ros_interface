@@ -19,13 +19,14 @@
 // SOFTWARE.
 
 #include <stdio.h>
-
 #include <iostream>
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/CameraInfo.h"
+#include "sensor_msgs/SetCameraInfo.h"
 #include "sensor_msgs/image_encodings.h"
 #include "image_transport/image_transport.h"
 #include "Spinnaker.h"
@@ -56,6 +57,9 @@ CONFIG_STRING(topic, "ros_image_topic");
 CONFIG_STRING(ros_image_encoding, "ros_image_encoding");
 
 image_transport::Publisher image_pub_;
+ros::Publisher camera_info_pub_;
+sensor_msgs::CameraInfo camera_info_;
+ros::ServiceServer set_camera_info_srv_;
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -63,6 +67,7 @@ using namespace Spinnaker::GenICam;
 
 using std::cout;
 using std::endl;
+
 
 void EnumerateCameras() {
   try {
@@ -257,6 +262,17 @@ void CaptureLoop(CameraPtr pCam) {
       image.encoding = sensor_msgs::image_encodings::BGR8;
     } else {
       image.encoding = CONFIG_ros_image_encoding;
+    }    
+
+    camera_info_.header.frame_id = CONFIG_frame_id;
+    camera_info_.width = CONFIG_img_width;
+    camera_info_.height = CONFIG_img_height;
+    if (CONFIG_enable_binning == true){
+      camera_info_.binning_x = CONFIG_binning;
+      camera_info_.binning_y = CONFIG_binning;
+    } else{
+      camera_info_.binning_x = 0;
+      camera_info_.binning_y = 0;
     }
 
     // The net_offset accounts for the FLIR clock being non-
@@ -275,6 +291,7 @@ void CaptureLoop(CameraPtr pCam) {
           net_time_offset = ros::Time::now().toSec() - 1e-9 * static_cast<double>(pResultImage->GetTimeStamp());
         }
         image.header.stamp.fromSec(net_time_offset + 1e-9 * (static_cast<double>(pResultImage->GetTimeStamp())));
+        camera_info_.header.stamp =  image.header.stamp;
 
         if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
           ImagePtr color_image = pResultImage->Convert(
@@ -291,7 +308,10 @@ void CaptureLoop(CameraPtr pCam) {
           memcpy(image.data.data(), 
               pResultImage->GetData(), image.data.size());
         }
+
         image_pub_.publish(image);
+        camera_info_pub_.publish(camera_info_);
+
         if (FLAGS_v > 0) {
           printf("%dx%d %lu Image captured, t=%f\n",
               image.width, image.height, image.data.size(),
@@ -310,6 +330,20 @@ void CaptureLoop(CameraPtr pCam) {
   }
 }
 
+bool SetCameraInfoSrvCallback(sensor_msgs::SetCameraInfo::Request &request, sensor_msgs::SetCameraInfo::Response &response)
+{
+  camera_info_.distortion_model = request.camera_info.distortion_model;
+  camera_info_.D = request.camera_info.D;
+  camera_info_.K = request.camera_info.K;
+  camera_info_.R = request.camera_info.R;
+  camera_info_.P = request.camera_info.P;
+
+  response.success = true;
+  response.status_message = "This service only allows you to set the distortion model and the DKRP matrices. You cannot change any other camera parameter!";
+
+  return true;
+}
+
 int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, false);
@@ -319,9 +353,11 @@ int main(int argc, char* argv[]) {
     return 0;
   }
   ros::init(argc, argv, "spinnaker_ros_interface");
-  ros::NodeHandle n;
-  image_transport::ImageTransport it(n);
+  ros::NodeHandle nh;
+  image_transport::ImageTransport it(nh);
   image_pub_ = it.advertise(CONFIG_topic, 1, false);
+  camera_info_pub_ = nh.advertise<sensor_msgs::CameraInfo>(CONFIG_topic+"/camera_info", 1, false);
+  set_camera_info_srv_ = nh.advertiseService(CONFIG_topic+"camera/set_camera_info", SetCameraInfoSrvCallback);
 
   SystemPtr system = System::GetInstance();
   CameraList cam_list = system->GetCameras();
