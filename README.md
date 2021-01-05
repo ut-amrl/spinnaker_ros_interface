@@ -31,12 +31,22 @@ Spinnaker ROS Driver
 1. Run `make`
 
 ## Usage
-
+You can run the node manually from the command line or use roslaunch.
+### Commnad Line
+Before running the node you must start a `roscore` in another terminal. 
 1. Edit the default config file `config/blackfly-s.lua`, or create your own camera config file
-1. Run `./bin/spinnaker_ros_interface` to run with the default config file
+1. Run `./bin/spinnaker_ros_interface` to run with the defaults
 1. Run `./bin/spinnaker_ros_interface --config <file.lua>` to run with the specified config file
-1. Run  `./bin/spinnaker_ros_interface __name:=<node_name>`to run with user specified ROS node name - required when running two or more nodes
+1. Run  `./bin/spinnaker_ros_interface __name:=<node_name>` to run with user specified ROS node name - required when running two or more nodes
 
+### Roslaunch
+From the `spinnaker_ros_interface` directory add the package to the `ROS_PACKAGE_PATH` so roslaunch will be able to find it:
+1. ``` export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:`pwd` ```
+1. Run `roslaunch spinnaker_ros_interface spinnaker_ros_interface.launch` to run with the defaults
+1. Run `roslaunch spinnaker_ros_interface spinnaker_ros_interface.launch camera_config:=<config_file.lua>` to run with the specified config file
+1. Run `roslaunch spinnaker_ros_interface spinnaker_ros_interface.launch node_name:=<unique_node_name>` to run with user specified ROS node name - required when running two or more nodes
+
+Note that users who are familiar with launch files can edit these parameters in the launch file itself and take advantage of the control/flexibility that [roslaunch](https://wiki.ros.org/roslaunch) gives users.
 
 ## Spinnaker SpinView QT Application
 
