@@ -256,9 +256,8 @@ void CaptureLoop(CameraPtr pCam) {
     pCam->BeginAcquisition();
 
     sensor_msgs::Image image;
-    CONFIG_STRING(frame_id, "frame_id");
 
-    image.header.frame_id = CONFIG_frame_id;
+    image.header.frame_id = CONFIG_topic+"_frame";
     image.width = CONFIG_img_width;
     image.height = CONFIG_img_height;
     if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
@@ -268,7 +267,7 @@ void CaptureLoop(CameraPtr pCam) {
     }    
 
     if (CONFIG_ros_pub_camera_info){
-      camera_info_.header.frame_id = CONFIG_frame_id;
+      camera_info_.header.frame_id = CONFIG_topic+"_frame";
       camera_info_.width = CONFIG_img_width;
       camera_info_.height = CONFIG_img_height;
 
@@ -367,7 +366,7 @@ int main(int argc, char* argv[]) {
   ros::init(argc, argv, "spinnaker_ros_interface");
   ros::NodeHandle nh;
   image_transport::ImageTransport it(nh);
-  image_pub_ = it.advertise(CONFIG_topic+"_image", 1, false);
+  image_pub_ = it.advertise(CONFIG_topic+"/image_raw", 1, false);
   camera_info_pub_ = nh.advertise<sensor_msgs::CameraInfo>(CONFIG_topic+"/camera_info", 1, false);
   set_camera_info_srv_ = nh.advertiseService(CONFIG_topic+"/set_camera_info", SetCameraInfoSrvCallback);
 
