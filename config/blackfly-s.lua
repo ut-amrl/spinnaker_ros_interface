@@ -15,3 +15,4 @@ camera_binning = 2;
 
 ros_image_encoding = "mono8";
 ros_image_topic = "image";
+ros_pub_camera_info = true;

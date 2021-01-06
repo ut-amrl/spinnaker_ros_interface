@@ -1,0 +1,24 @@
+<launch>    
+    <!-- left camera -->
+    <arg name="left_camera_config" default="blackfly-s_19423367.lua"/>
+    <arg name="left_camera_node_name" default="left"/>
+
+    <!-- right camera -->
+    <arg name="right_camera_config" default="blackfly-s_19423356.lua"/>
+    <arg name="right_camera_node_name" default="right"/>
+
+    <!-- group cameras in stereo namespace -->
+    <group ns="stereo">
+        <node pkg="spinnaker_ros_interface" 
+              type="spinnaker_ros_interface" 
+              name="$(arg left_camera_node_name)" 
+              args="--config $(find spinnaker_ros_interface)/config/$(arg left_camera_config)"
+              output="screen"/>
+
+        <node pkg="spinnaker_ros_interface" 
+              type="spinnaker_ros_interface" 
+              name="$(arg right_camera_node_name)" 
+              args="--config $(find spinnaker_ros_interface)/config/$(arg right_camera_config)"
+              output="screen"/>
+    </group>
+</launch>
