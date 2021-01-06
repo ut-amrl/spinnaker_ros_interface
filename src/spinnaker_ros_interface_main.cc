@@ -257,7 +257,7 @@ void CaptureLoop(CameraPtr pCam) {
 
     sensor_msgs::Image image;
 
-    image.header.frame_id = CONFIG_topic+"_frame";
+    image.header.frame_id = CONFIG_topic+"_optical";
     image.width = CONFIG_img_width;
     image.height = CONFIG_img_height;
     if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
@@ -267,7 +267,7 @@ void CaptureLoop(CameraPtr pCam) {
     }    
 
     if (CONFIG_ros_pub_camera_info){
-      camera_info_.header.frame_id = CONFIG_topic+"_frame";
+      camera_info_.header.frame_id = CONFIG_topic+"_optical";
       camera_info_.width = CONFIG_img_width;
       camera_info_.height = CONFIG_img_height;
 
