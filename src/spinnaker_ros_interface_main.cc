@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <stdio.h>
+
 #include <iostream>
 
 #include "SpinGenApi/SpinnakerGenApi.h"
@@ -28,8 +29,8 @@
 #include "glog/logging.h"
 #include "image_transport/image_transport.h"
 #include "ros/ros.h"
-#include "sensor_msgs/Image.h"
 #include "sensor_msgs/CameraInfo.h"
+#include "sensor_msgs/Image.h"
 #include "sensor_msgs/SetCameraInfo.h"
 #include "sensor_msgs/image_encodings.h"
 
@@ -52,8 +53,6 @@ CONFIG_BOOL(enable_binning, "camera_enable_binning");
 CONFIG_BOOL(enable_decimation, "camera_enable_decimation");
 CONFIG_FLOAT(gamma, "camera_gamma");
 
-
-
 CONFIG_STRING(topic, "ros_image_topic");
 CONFIG_STRING(ros_image_encoding, "ros_image_encoding");
 CONFIG_BOOL(ros_pub_camera_info, "ros_pub_camera_info");
@@ -69,7 +68,6 @@ using namespace Spinnaker::GenICam;
 
 using std::cout;
 using std::endl;
-
 
 void EnumerateCameras() {
   try {
@@ -263,28 +261,27 @@ void CaptureLoop(CameraPtr pCam) {
 
     sensor_msgs::Image image;
 
-    image.header.frame_id = CONFIG_topic+"_optical";
+    image.header.frame_id = CONFIG_topic + "_optical";
     image.width = CONFIG_img_width;
     image.height = CONFIG_img_height;
     if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
       image.encoding = sensor_msgs::image_encodings::BGR8;
     } else {
       image.encoding = CONFIG_ros_image_encoding;
-    }    
+    }
 
-    if (CONFIG_ros_pub_camera_info){
-      camera_info_.header.frame_id = CONFIG_topic+"_optical";
+    if (CONFIG_ros_pub_camera_info) {
+      camera_info_.header.frame_id = CONFIG_topic + "_optical";
       camera_info_.width = CONFIG_img_width;
       camera_info_.height = CONFIG_img_height;
 
-      if (CONFIG_enable_binning == true){
+      if (CONFIG_enable_binning == true) {
         camera_info_.binning_x = CONFIG_binning;
         camera_info_.binning_y = CONFIG_binning;
       } else {
         camera_info_.binning_x = 0;
         camera_info_.binning_y = 0;
       }
-
     }
 
     // The net_offset accounts for the FLIR clock being non-
@@ -308,8 +305,8 @@ void CaptureLoop(CameraPtr pCam) {
             net_time_offset +
             1e-9 * (static_cast<double>(pResultImage->GetTimeStamp())));
 
-        if (CONFIG_ros_pub_camera_info){
-          camera_info_.header.stamp =  image.header.stamp;
+        if (CONFIG_ros_pub_camera_info) {
+          camera_info_.header.stamp = image.header.stamp;
           // Spin to check for and execute set_camera_info_srv_ service requests
           ros::spinOnce();
         }
@@ -351,8 +348,8 @@ void CaptureLoop(CameraPtr pCam) {
   }
 }
 
-bool SetCameraInfoSrvCallback(sensor_msgs::SetCameraInfo::Request &request, sensor_msgs::SetCameraInfo::Response &response)
-{
+bool SetCameraInfoSrvCallback(sensor_msgs::SetCameraInfo::Request& request,
+                              sensor_msgs::SetCameraInfo::Response& response) {
   camera_info_.distortion_model = request.camera_info.distortion_model;
   camera_info_.D = request.camera_info.D;
   camera_info_.K = request.camera_info.K;
@@ -360,7 +357,9 @@ bool SetCameraInfoSrvCallback(sensor_msgs::SetCameraInfo::Request &request, sens
   camera_info_.P = request.camera_info.P;
 
   response.success = true;
-  response.status_message = "This service only allows you to set the distortion model and the DKRP matrices. You cannot change any other camera parameter!";
+  response.status_message =
+      "This service only allows you to set the distortion model and the DKRP "
+      "matrices. You cannot change any other camera parameter!";
 
   return true;
 }
@@ -376,9 +375,11 @@ int main(int argc, char* argv[]) {
   ros::init(argc, argv, "spinnaker_ros_interface");
   ros::NodeHandle nh;
   image_transport::ImageTransport it(nh);
-  image_pub_ = it.advertise(CONFIG_topic+"/image_raw", 1, false);
-  camera_info_pub_ = nh.advertise<sensor_msgs::CameraInfo>(CONFIG_topic+"/camera_info", 1, false);
-  set_camera_info_srv_ = nh.advertiseService(CONFIG_topic+"/set_camera_info", SetCameraInfoSrvCallback);
+  image_pub_ = it.advertise(CONFIG_topic + "/image_raw", 1, false);
+  camera_info_pub_ = nh.advertise<sensor_msgs::CameraInfo>(
+      CONFIG_topic + "/camera_info", 1, false);
+  set_camera_info_srv_ = nh.advertiseService(CONFIG_topic + "/set_camera_info",
+                                             SetCameraInfoSrvCallback);
 
   SystemPtr system = System::GetInstance();
   CameraList cam_list = system->GetCameras();
