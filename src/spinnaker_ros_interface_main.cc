@@ -275,13 +275,10 @@ void CaptureLoop(CameraPtr pCam) {
       camera_info_.width = CONFIG_img_width;
       camera_info_.height = CONFIG_img_height;
 
-      if (CONFIG_enable_binning == true) {
-        camera_info_.binning_x = CONFIG_binning;
-        camera_info_.binning_y = CONFIG_binning;
-      } else {
-        camera_info_.binning_x = 0;
-        camera_info_.binning_y = 0;
-      }
+      // Binning is done on camera not in ROS so set to 1 by default
+      camera_info_.binning_x = 1;
+      camera_info_.binning_y = 1;
+      
     }
 
     // The net_offset accounts for the FLIR clock being non-
