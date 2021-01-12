@@ -60,3 +60,4 @@ The SDK provides a GUI with which you can verify camera connectivity and find in
     ```
     ./SpinView_QT
     ```
+In order to configure synchronized capture see [this link](https://www.flir.com/support-center/iis/machine-vision/application-note/configuring-synchronized-capture-with-multiple-cameras/)
