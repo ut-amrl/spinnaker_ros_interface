@@ -182,7 +182,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
   Spinnaker::GenApi::INodeMap& nodeMap = camera->GetNodeMap();
   try {
     SetEnum("PixelFormat", CONFIG_img_fmt, nodeMap);
-    SetEnum("ExposureAuto", "Off", nodeMap);
+    SetEnum("ExposureAuto", "Continuous", nodeMap);
     SetEnum("ExposureMode", "Timed", nodeMap);
     SetEnum("BinningSelector", "Sensor", nodeMap);
     WriteSetting<IInteger, int>("Width", CONFIG_img_width, nodeMap);
@@ -195,7 +195,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
         "ExposureTime", CONFIG_exposure, nodeMap);
     WriteSetting<Spinnaker::GenApi::IFloat, float>(
         "Gamma", CONFIG_gamma, nodeMap);
-    SetEnum("GainAuto", "Off", nodeMap);
+    SetEnum("GainAuto", "Continuous", nodeMap);
     WriteSetting<Spinnaker::GenApi::IBoolean, float>(
         "AcquisitionFrameRateEnable", false, nodeMap);
     if (CONFIG_enable_decimation) {
