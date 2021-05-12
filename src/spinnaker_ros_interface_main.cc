@@ -95,7 +95,7 @@ void EnumerateCameras() {
 
 CameraPtr OpenCamera(CameraList& cam_list) {
   SystemPtr system = System::GetInstance();
-
+  
   CHECK_GT(cam_list.GetSize(), 0) << "\nNo cameras found, quitting.";
   if (CONFIG_serial.empty()) {
     printf("Using first camera\n");
@@ -384,6 +384,9 @@ int main(int argc, char* argv[]) {
   camera->Init();
   ConfigureCamera(camera);
   CaptureLoop(camera);
+
+  // Release system
+  system->ReleaseInstance();
 
   return 0;
 }
