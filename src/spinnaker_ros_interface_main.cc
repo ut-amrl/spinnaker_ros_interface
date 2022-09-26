@@ -39,7 +39,7 @@ DECLARE_int32(v);
 DEFINE_bool(list, false, "List cameras");
 
 DEFINE_string(config, "config/blackfly-s.lua", "Config file to load");
-DEFINE_bool(debayer, false, "Enable software debayering");
+DEFINE_bool(debayer, true, "Enable software debayering");
 
 CONFIG_STRING(serial, "camera_serial");
 CONFIG_INT(img_width, "camera_img_width");
@@ -52,6 +52,10 @@ CONFIG_BOOL(enable_isp, "camera_enable_isp");
 CONFIG_BOOL(enable_binning, "camera_enable_binning");
 CONFIG_BOOL(enable_decimation, "camera_enable_decimation");
 CONFIG_FLOAT(gamma, "camera_gamma");
+
+CONFIG_STRING(line_selector, "camera_line_selector");
+CONFIG_STRING(line_mode, "camera_line_mode");
+CONFIG_BOOL(enable3v3, "camera_enable_3v3");
 
 CONFIG_STRING(topic, "ros_image_topic");
 CONFIG_STRING(ros_image_encoding, "ros_image_encoding");
@@ -185,6 +189,14 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     SetEnum("ExposureAuto", "Off", nodeMap);
     SetEnum("ExposureMode", "Timed", nodeMap);
     SetEnum("BinningSelector", "Sensor", nodeMap);
+
+    /** Primary Camera Testing **/
+    SetEnum("LineSelector", CONFIG_line_selector, nodeMap);
+    SetEnum("LineMode", CONFIG_line_mode, nodeMap);
+
+    WriteSetting<Spinnaker::GenApi::IBoolean, float>("V3_3Enable", CONFIG_enable3v3, nodeMap);
+
+    /** End Camera Testing **/
     WriteSetting<IInteger, int>("Width", CONFIG_img_width, nodeMap);
     WriteSetting<IInteger, int>("Height", CONFIG_img_height, nodeMap);
     SetEnum("BinningSelector", "All", nodeMap);
@@ -233,6 +245,12 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
          << "\n";
     cout << "DeviceLinkBandwidthReserve: "
          << ReadSetting<IFloat, float>("DeviceLinkBandwidthReserve", nodeMap)
+         << "\n";
+    cout << "LineStatus: "
+         << ReadSetting<IBoolean, float>("LineStatus", nodeMap)
+         << "\n";
+    cout << "LineStatusAll: "
+         << ReadSetting<IInteger, int>("LineStatusAll", nodeMap)
          << "\n";
   } catch (Spinnaker::Exception& e) {
     LOG(FATAL) << "Spinnaker Error: " << e.what();
@@ -341,6 +359,7 @@ void CaptureLoop(CameraPtr pCam) {
     // End acquisition
     pCam->EndAcquisition();
   } catch (Spinnaker::Exception& e) {
+    pCam->EndAcquisition();
     LOG(FATAL) << "Spinnaker Error: " << e.what() << endl;
   }
 }

@@ -1,10 +1,11 @@
 <package>
     <name>spinnaker_ros_interface</name>
-    <description brief="spinnaker_ros_interface">
+    <description>
       Spinnaker-ROS Interface for FLIR Cameras
     </description>
+    <version>0.0.1</version>
     <author>Maintained by Joydeep Biswas</author>
+    <maintainer email="joydeepb@cs.utexas.edu">joydeepb</maintainer>
     <license>MIT</license>
-    <review status="unreviewed" notes=""/>
     <url>https://github.com/ut-amrl/spinnaker_ros_interface</url>
 </package>

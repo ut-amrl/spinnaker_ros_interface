@@ -1,0 +1,11 @@
+<launch>    
+    <!-- group cameras in stereo namespace -->
+    <group ns="stereo">
+        <node name="set_leftcam_info" pkg="spinnaker_ros_interface" type="set_leftcam_info.bash" />
+        <node name="set_rightcam_info" pkg="spinnaker_ros_interface" type="set_rightcam_info.bash" /> -->
+    
+        <node name="stereo" pkg="stereo_image_proc" type="stereo_image_proc"/>
+    </group>
+
+    <!-- launch-prefix="bash -c 'sleep $(arg node_start_delay);' $0 $@"/> -->
+</launch>
