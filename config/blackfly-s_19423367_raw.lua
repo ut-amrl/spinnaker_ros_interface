@@ -14,7 +14,7 @@ camera_enable_binning = true;
 camera_binning = 2;
 
 camera_line_selector = "Line2";
-camera_line_mode = "Input"; -- should be output but sdk doesnt recognize that as an option for this line
+camera_line_mode = "Input"; -- should be output but spinnake sdk doesn't recognize option
 camera_enable_3v3 = true;
 
 ros_image_encoding = "bayer_rggb8";
