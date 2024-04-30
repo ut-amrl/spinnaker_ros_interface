@@ -3,7 +3,7 @@ camera_serial = "19423367";
 camera_img_width = 1224;
 camera_img_height = 1024;
 camera_img_fmt = "Mono8";
-camera_exposure = 16000.0; -- microseconds.
+camera_exposure = 3000.0; -- microseconds.
 camera_gamma = 0.75;
 
 camera_enable_isp = false;

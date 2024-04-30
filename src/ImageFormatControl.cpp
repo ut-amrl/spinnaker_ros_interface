@@ -252,6 +252,9 @@ int AcquireImages(CameraPtr pCam,
     // Begin acquiring images
     pCam->BeginAcquisition();
 
+    ImageProcessor processor;
+    processor.SetColorProcessing(SPINNAKER_COLOR_PROCESSING_ALGORITHM_HQ_LINEAR); 
+
     cout << "Acquiring images..." << endl;
 
     // Retrieve device serial number for filename
@@ -285,8 +288,9 @@ int AcquireImages(CameraPtr pCam,
                << ", height = " << pResultImage->GetHeight() << endl;
 
           // Convert image to mono 8
-          ImagePtr convertedImage =
-              pResultImage->Convert(PixelFormat_Mono8, HQ_LINEAR);
+          ImagePtr convertedImage = processor.Convert(
+            pResultImage, PixelFormat_Mono8
+          );
 
           // Create a unique filename
           ostringstream filename;

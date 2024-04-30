@@ -45,6 +45,7 @@ CONFIG_STRING(serial, "camera_serial");
 CONFIG_INT(img_width, "camera_img_width");
 CONFIG_INT(img_height, "camera_img_height");
 CONFIG_STRING(img_fmt, "camera_img_fmt");
+CONFIG_INT(gain_auto, "camera_gain_auto");
 CONFIG_FLOAT(exposure, "camera_exposure");
 CONFIG_INT(binning, "camera_binning");
 CONFIG_INT(decimation, "camera_decimation");
@@ -189,6 +190,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     SetEnum("ExposureAuto", "Off", nodeMap);
     SetEnum("ExposureMode", "Timed", nodeMap);
     SetEnum("BinningSelector", "Sensor", nodeMap);
+    // SetEnum("AcquisitionFrameRateAuto", "Off", nodeMap);
 
     /** Primary Camera Testing **/
     SetEnum("LineSelector", CONFIG_line_selector, nodeMap);
@@ -197,6 +199,8 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     WriteSetting<Spinnaker::GenApi::IBoolean, float>("V3_3Enable", CONFIG_enable3v3, nodeMap);
 
     /** End Camera Testing **/
+    std::cout << "Image Width " << CONFIG_img_width << '\n';
+    std::cout << "Image Height " << CONFIG_img_height << '\n';
     WriteSetting<IInteger, int>("Width", CONFIG_img_width, nodeMap);
     WriteSetting<IInteger, int>("Height", CONFIG_img_height, nodeMap);
     SetEnum("BinningSelector", "All", nodeMap);
@@ -207,9 +211,14 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
         "ExposureTime", CONFIG_exposure, nodeMap);
     WriteSetting<Spinnaker::GenApi::IFloat, float>(
         "Gamma", CONFIG_gamma, nodeMap);
-    SetEnum("GainAuto", "Off", nodeMap);
-    WriteSetting<Spinnaker::GenApi::IBoolean, float>(
-        "AcquisitionFrameRateEnable", false, nodeMap);
+    
+    // WriteSetting<Spinnaker::GenApi::IBoolean, float>(
+    //     "AcquisitionFrameRateEnable", false, nodeMap);
+    // WriteSetting<Spinnaker::GenApi::IInteger, float>(
+    //     "AcquisitionFrameRate", 12, nodeMap); // Safe value when #cams > 3
+    WriteSetting<Spinnaker::GenApi::IInteger, float>(
+        "GainAuto", CONFIG_gain_auto, nodeMap); // Safe value when #cams > 3
+        
     if (CONFIG_enable_decimation) {
       WriteSetting<Spinnaker::GenApi::IInteger, float>(
           "DecimationHorizontal", CONFIG_decimation, nodeMap);
@@ -222,8 +231,16 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
       WriteSetting<Spinnaker::GenApi::IInteger, float>(
           "BinningVertical", CONFIG_binning, nodeMap);
     }
+
+    // WriteSetting<Spinnaker::GenApi::IBoolean, float>(
+    //     "AcquisitionFrameRateAuto", false, nodeMap);
+    // WriteSetting<Spinnaker::GenApi::IBoolean, float>(
+    //     "AcquisitionFrameRateEnable", true, nodeMap);
     // WriteSetting<Spinnaker::GenApi::IFloat, float>(
-    //     "AcquisitionFrameRate", 30.0f, nodeMap);
+    //     "AcquisitionResultingFrameRate", 12.0f, nodeMap);
+    // WriteSetting<Spinnaker::GenApi::IFloat, float>(
+    //     "AcquisitionFrameRate", 12.0f, nodeMap);
+    
     cout << "\n\nResulting frame rate: "
          << ReadSetting<Spinnaker::GenApi::IFloat, float>(
                 "AcquisitionResultingFrameRate", nodeMap)
@@ -299,6 +316,14 @@ void CaptureLoop(CameraPtr pCam) {
       
     }
 
+    // Create ImageProcessor instance for post processing images
+    // *** NOTES ***
+    // By default, if no specific color processing algorithm is set, the image
+    // processor will default to NEAREST_NEIGHBOR method.
+    //
+    ImageProcessor processor;
+    processor.SetColorProcessing(SPINNAKER_COLOR_PROCESSING_ALGORITHM_NEAREST_NEIGHBOR_AVG); 
+
     // The net_offset accounts for the FLIR clock being non-
     // zero when the node starts and the ROS wall time
     double net_time_offset{0.0};
@@ -327,8 +352,9 @@ void CaptureLoop(CameraPtr pCam) {
         }
 
         if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
-          ImagePtr color_image = pResultImage->Convert(
-              PixelFormat_BGR8, Spinnaker::NEAREST_NEIGHBOR);
+          ImagePtr color_image = processor.Convert(
+            pResultImage, PixelFormat_BGR8
+          );
           image.step = color_image->GetStride();
           image.data.resize(std::min<uint64_t>(image.height * image.step,
                                                color_image->GetBufferSize()));
