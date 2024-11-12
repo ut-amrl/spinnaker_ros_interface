@@ -5,7 +5,7 @@ Spinnaker ROS Driver
 ## Dependencies
 
 1. [ROS](http://wiki.ros.org/Installation/)
-1. The Spinnaker SDK found at [FLIR](https://meta.box.lenovo.com/v/link/view/a1995795ffba47dbbe45771477319cc3).
+1. The Spinnaker SDK found at [FLIR]((https://www.flir.com/products/spinnaker-sdk/?vertical=machine+vision&segment=iis). This repository has been tested with SDK version 2.7.0. We currently do not support SDK version 3.0.0 due to its lack of support for RG8 to BGR8 image conversions.
     - Navigate to the download directory, unzip the folder, navigate into the folder and run:
     ```
     ./install_spinnaker.sh
@@ -58,6 +58,6 @@ The SDK provides a GUI with which you can verify camera connectivity and find in
     ```
 1. Run SpinView application
     ```
-    ./SpinView_QT
+    ./SpinView
     ```
 In order to configure synchronized capture see [this link](https://www.flir.com/support-center/iis/machine-vision/application-note/configuring-synchronized-capture-with-multiple-cameras/)
