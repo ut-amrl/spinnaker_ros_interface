@@ -46,6 +46,8 @@ CONFIG_INT(img_width, "camera_img_width");
 CONFIG_INT(img_height, "camera_img_height");
 CONFIG_STRING(img_fmt, "camera_img_fmt");
 CONFIG_FLOAT(exposure, "camera_exposure");
+CONFIG_STRING(exposure_auto, "camera_exposure_auto");
+CONFIG_STRING(gain_auto, "camera_gain_auto");
 CONFIG_INT(binning, "camera_binning");
 CONFIG_INT(decimation, "camera_decimation");
 CONFIG_BOOL(enable_isp, "camera_enable_isp");
@@ -102,9 +104,11 @@ CameraPtr OpenCamera(CameraList& cam_list) {
 
   CHECK_GT(cam_list.GetSize(), 0) << "\nNo cameras found, quitting.";
   if (CONFIG_serial.empty()) {
+    std::cout << "Using first camera " << std::endl;
     printf("Using first camera\n");
     return cam_list.GetByIndex(0);
   } else {
+    std::cout << "Get first camera" << std::endl;
     printf("Get camera with serial %s\n", CONFIG_serial.c_str());
     return cam_list.GetBySerial(CONFIG_serial);
   }
@@ -186,7 +190,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
   Spinnaker::GenApi::INodeMap& nodeMap = camera->GetNodeMap();
   try {
     SetEnum("PixelFormat", CONFIG_img_fmt, nodeMap);
-    SetEnum("ExposureAuto", "Off", nodeMap);
+    SetEnum("ExposureAuto", CONFIG_exposure_auto, nodeMap);
     SetEnum("ExposureMode", "Timed", nodeMap);
     SetEnum("BinningSelector", "Sensor", nodeMap);
 
@@ -194,7 +198,8 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     SetEnum("LineSelector", CONFIG_line_selector, nodeMap);
     SetEnum("LineMode", CONFIG_line_mode, nodeMap);
 
-    WriteSetting<Spinnaker::GenApi::IBoolean, float>("V3_3Enable", CONFIG_enable3v3, nodeMap);
+    WriteSetting<Spinnaker::GenApi::IBoolean, float>(
+        "V3_3Enable", CONFIG_enable3v3, nodeMap);
 
     /** End Camera Testing **/
     WriteSetting<IInteger, int>("Width", CONFIG_img_width, nodeMap);
@@ -207,7 +212,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
         "ExposureTime", CONFIG_exposure, nodeMap);
     WriteSetting<Spinnaker::GenApi::IFloat, float>(
         "Gamma", CONFIG_gamma, nodeMap);
-    SetEnum("GainAuto", "Off", nodeMap);
+    SetEnum("GainAuto", CONFIG_gain_auto, nodeMap);
     WriteSetting<Spinnaker::GenApi::IBoolean, float>(
         "AcquisitionFrameRateEnable", false, nodeMap);
     if (CONFIG_enable_decimation) {
@@ -247,11 +252,9 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
          << ReadSetting<IFloat, float>("DeviceLinkBandwidthReserve", nodeMap)
          << "\n";
     cout << "LineStatus: "
-         << ReadSetting<IBoolean, float>("LineStatus", nodeMap)
-         << "\n";
+         << ReadSetting<IBoolean, float>("LineStatus", nodeMap) << "\n";
     cout << "LineStatusAll: "
-         << ReadSetting<IInteger, int>("LineStatusAll", nodeMap)
-         << "\n";
+         << ReadSetting<IInteger, int>("LineStatusAll", nodeMap) << "\n";
   } catch (Spinnaker::Exception& e) {
     LOG(FATAL) << "Spinnaker Error: " << e.what();
   }
@@ -260,6 +263,7 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
 void CaptureLoop(CameraPtr pCam) {
   Spinnaker::GenApi::INodeMap& nodeMap = pCam->GetNodeMap();
   try {
+    std::cout << "Starting acquisition\n";
     // Set acquisition mode to continuous
     CEnumerationPtr ptrAcquisitionMode = nodeMap.GetNode("AcquisitionMode");
     CHECK(IsAvailable(ptrAcquisitionMode)) << "Acquisition unavailable";
@@ -296,7 +300,6 @@ void CaptureLoop(CameraPtr pCam) {
       // Binning is done on camera not in ROS so set to 1 by default
       camera_info_.binning_x = 1;
       camera_info_.binning_y = 1;
-      
     }
 
     // The net_offset accounts for the FLIR clock being non-
@@ -327,6 +330,8 @@ void CaptureLoop(CameraPtr pCam) {
         }
 
         if (FLAGS_debayer && CONFIG_img_fmt == "BayerRG8") {
+          // ImagePtr color_image = processor.Convert(pResultImage,
+          // PixelFormat_BGR8);
           ImagePtr color_image = pResultImage->Convert(
               PixelFormat_BGR8, Spinnaker::NEAREST_NEIGHBOR);
           image.step = color_image->GetStride();
@@ -396,7 +401,7 @@ int main(int argc, char* argv[]) {
       CONFIG_topic + "/camera_info", 1, false);
   set_camera_info_srv_ = nh.advertiseService(CONFIG_topic + "/set_camera_info",
                                              SetCameraInfoSrvCallback);
-
+  std::cout << "Getting camera list\n";
   SystemPtr system = System::GetInstance();
   CameraList cam_list = system->GetCameras();
   CameraPtr camera = OpenCamera(cam_list);
