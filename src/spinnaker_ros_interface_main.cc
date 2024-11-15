@@ -205,7 +205,8 @@ void ConfigureCamera(Spinnaker::CameraPtr camera) {
     WriteSetting<IInteger, int>("Width", CONFIG_img_width, nodeMap);
     WriteSetting<IInteger, int>("Height", CONFIG_img_height, nodeMap);
     SetEnum("BinningSelector", "All", nodeMap);
-    // SetEnum("BinningVerticalMode", "Additive", nodeMap);
+    SetEnum("BinningVerticalMode", "Average", nodeMap);
+    SetEnum("BinningHorizontalMode", "Average", nodeMap);
     WriteSetting<Spinnaker::GenApi::IBoolean, float>(
         "IspEnable", CONFIG_enable_isp, nodeMap);
     WriteSetting<Spinnaker::GenApi::IFloat, float>(
